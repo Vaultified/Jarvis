@@ -5,3 +5,4 @@ pydantic==2.11.5
 ctransformers==0.2.27
 sounddevice
 openai-whisper
+whisper
