@@ -6,6 +6,14 @@ interface Message {
   content: string;
 }
 
+async function speakText(text: string) {
+  await fetch("http://localhost:8000/api/speak", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+}
+
 const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -43,6 +51,7 @@ const Chat: React.FC = () => {
       const data = await response.json();
       const assistantMessage: Message = { role: "assistant", content: data.response };
       setMessages((prev) => [...prev, assistantMessage]);
+      speakText(data.response);
     } catch (error) {
       console.error("Error:", error);
       const errorMessage: Message = {
