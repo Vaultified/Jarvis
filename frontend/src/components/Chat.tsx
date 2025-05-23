@@ -64,6 +64,40 @@ const Chat: React.FC = () => {
     }
   };
 
+  const handleMicClick = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("http://localhost:8000/api/listen", { method: "POST" });
+      const data = await res.json();
+      if (data.text && data.text.trim()) {
+        const userMessage: Message = { role: "user", content: data.text };
+        setMessages((prev) => [...prev, userMessage]);
+        setInput("");
+        const response = await fetch("http://localhost:8000/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ prompt: data.text }),
+        });
+        if (!response.ok) throw new Error("Network response was not ok");
+        const respData = await response.json();
+        const assistantMessage: Message = { role: "assistant", content: respData.response };
+        setMessages((prev) => [...prev, assistantMessage]);
+        speakText(respData.response);
+      }
+    } catch (error) {
+      console.error("STT error:", error);
+      const errorMessage: Message = {
+        role: "assistant",
+        content: "Sorry, I encountered an error. Please try again.",
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="chat-container">
       <div className="chat-messages">
@@ -89,6 +123,9 @@ const Chat: React.FC = () => {
         />
         <button type="submit" className="send-button" disabled={isLoading || !input.trim()}>
           Send
+        </button>
+        <button type="button" className="mic-button" onClick={handleMicClick} disabled={isLoading}>
+          🎤
         </button>
       </form>
     </div>

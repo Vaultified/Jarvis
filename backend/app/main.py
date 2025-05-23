@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .api import chat
 from .api import tts
+from .api import stt
 
 app = FastAPI(title="AI Desktop Assistant API")
 
@@ -17,6 +18,7 @@ app.add_middleware(
 # Include routers
 app.include_router(chat.router, prefix="/api")
 app.include_router(tts.router, prefix="/api")
+app.include_router(stt.router, prefix="/api")
 
 @app.get("/")
 async def root():
