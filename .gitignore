@@ -32,3 +32,5 @@ frontend/.env
 
 # Model files
 backend/models/ 
+
+llama.cpp/

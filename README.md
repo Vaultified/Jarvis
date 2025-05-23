@@ -1,82 +1,50 @@
-# AI Desktop Assistant
+## Getting Started
 
-A modern desktop assistant built with Python (FastAPI) backend and React-based Electron frontend.
+### Prerequisites
 
-## Project Structure
+- Python 3.8+
+- Node.js 16+ and npm
 
-```
-.
-├── backend/
-│   ├── app/
-│   │   ├── api/        # API endpoints
-│   │   ├── core/       # Core functionality
-│   │   ├── models/     # Data models
-│   │   ├── services/   # Business logic
-│   │   └── utils/      # Utility functions
-│   ├── requirements.txt
-│   └── .env
-└── frontend/
-    ├── src/
-    │   ├── components/ # React components
-    │   ├── pages/      # Page components
-    │   ├── styles/     # CSS/styling
-    │   └── utils/      # Frontend utilities
-    └── package.json
+### 1. Backend Setup
+
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # or .\\venv\\Scripts\\activate on Windows
+pip install -r requirements.txt
+uvicorn app.main:app --reload
 ```
 
-## Setup Instructions
+### 2. Frontend Setup
 
-### Backend Setup
+```bash
+cd frontend
+npm install
+npm run electron-dev
+```
 
-1. Create and activate virtual environment:
+### 3. Usage
 
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows: .\venv\Scripts\activate
-   ```
+- Start both the backend and frontend as above.
+- The Electron app will open as a desktop window.
+- Type your message in the chat box and interact with the local AI model.
 
-2. Install dependencies:
+## Roadmap
 
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   ```
+- [x] Local LLM chat with FastAPI and Electron
+- [ ] Add support for multiple MCP servers
+- [ ] Voice input/output
+- [ ] Plugin system for custom skills
+- [ ] Settings and personalization
 
-3. Run the backend server:
-   ```bash
-   uvicorn app.main:app --reload
-   ```
+## Contributing
 
-### Frontend Setup
+Pull requests and suggestions are welcome! Please open an issue to discuss your ideas.
 
-1. Install dependencies:
+## License
 
-   ```bash
-   cd frontend
-   npm install
-   ```
+[MIT](LICENSE)
 
-2. Start development server:
-   ```bash
-   npm run dev
-   ```
+---
 
-## Development
-
-- Backend API runs on: http://localhost:8000
-- Frontend dev server runs on: http://localhost:3000
-- API documentation available at: http://localhost:8000/docs
-
-## Building for Production
-
-1. Build the frontend:
-
-   ```bash
-   cd frontend
-   npm run build
-   ```
-
-2. Package the application:
-   ```bash
-   npm run package
-   ```
+**Note:** All AI processing is done locally. No data is sent to external servers unless you configure additional MCP servers in the future.
