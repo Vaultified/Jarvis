@@ -10,8 +10,9 @@ class SpeakRequest(BaseModel):
 @router.post("/speak")
 async def speak(request: SpeakRequest):
     try:
-        # Use macOS 'say' command to speak the text
-        subprocess.Popen(["say", request.text])
+        # Use macOS 'say' command with British English female voice
+        # 'Karen' is a British English female voice on macOS
+        subprocess.Popen(["say", "-v", "Karen", request.text])
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 
