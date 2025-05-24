@@ -1,50 +1,175 @@
-## Getting Started
+# Jarvis - AI Desktop Assistant
+
+A powerful, privacy-focused AI desktop assistant that runs entirely on your local machine. Built with FastAPI, Electron, and local LLMs, Jarvis provides a seamless voice and text interface for your daily tasks.
+
+## 🌟 Features
+
+- **Voice Interface**
+
+  - Wake word detection ("Hey Jarvis")
+  - Natural voice input/output
+  - British English female voice (Karen)
+  - Passive listening mode
+  - 5-second quick recording mode
+
+- **Local AI Processing**
+
+  - Runs entirely on your machine
+  - No data sent to external servers
+  - Powered by Mistral-7B model
+  - Fast response times
+  - Privacy-focused design
+
+- **Modern UI**
+  - Clean, responsive interface
+  - Real-time chat display
+  - Voice activity indicators
+  - Dark/light mode support
+  - Cross-platform compatibility
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
 - Python 3.8+
 - Node.js 16+ and npm
+- macOS (for voice features)
+- 8GB+ RAM recommended
 
-### 1. Backend Setup
+### Installation
+
+1. **Clone the repository**
+
+```bash
+git clone https://github.com/yourusername/jarvis.git
+cd jarvis
+```
+
+2. **Backend Setup**
 
 ```bash
 cd backend
 python -m venv venv
 source venv/bin/activate  # or .\\venv\\Scripts\\activate on Windows
 pip install -r requirements.txt
-uvicorn app.main:app --reload
 ```
 
-### 2. Frontend Setup
+3. **Frontend Setup**
 
 ```bash
 cd frontend
 npm install
+```
+
+4. **Environment Setup**
+   Create a `.env` file in the backend directory:
+
+```env
+MODEL_PATH=llama.cpp/models/mistral-7b-v0.1.Q4_0.gguf
+PORCUPINE_ACCESS_KEY=your_porcupine_key
+```
+
+### Running the Application
+
+1. **Start the Backend**
+
+```bash
+cd backend
+source venv/bin/activate
+uvicorn app.main:app --reload
+```
+
+2. **Start the Frontend**
+
+```bash
+cd frontend
 npm run electron-dev
 ```
 
-### 3. Usage
+## 🔮 Roadmap
 
-- Start both the backend and frontend as above.
-- The Electron app will open as a desktop window.
-- Type your message in the chat box and interact with the local AI model.
+### Phase 1: Core Features (Current)
 
-## Roadmap
+- [x] Local LLM chat integration
+- [x] Voice input/output
+- [x] Wake word detection
+- [x] Basic UI/UX
 
-- [x] Local LLM chat with FastAPI and Electron
-- [ ] Add support for multiple MCP servers
-- [ ] Voice input/output
+### Phase 2: MCP Server Integration (Next)
+
+- [ ] Multiple MCP server support
+- [ ] Server health monitoring
+- [ ] Load balancing
+- [ ] Failover handling
+- [ ] Server configuration UI
+
+### Phase 3: Enhanced Features
+
 - [ ] Plugin system for custom skills
-- [ ] Settings and personalization
+- [ ] Custom wake word training
+- [ ] Voice customization
+- [ ] Advanced conversation memory
+- [ ] Task scheduling and reminders
 
-## Contributing
+### Phase 4: Enterprise Features
 
-Pull requests and suggestions are welcome! Please open an issue to discuss your ideas.
+- [ ] Multi-user support
+- [ ] Role-based access control
+- [ ] Audit logging
+- [ ] API documentation
+- [ ] Deployment guides
 
-## License
+## 🤝 Contributing
 
-[MIT](LICENSE)
+We welcome contributions! Here's how you can help:
+
+1. **Fork the repository**
+2. **Create a feature branch**
+
+```bash
+git checkout -b feature/amazing-feature
+```
+
+3. **Commit your changes**
+
+```bash
+git commit -m 'Add amazing feature'
+```
+
+4. **Push to the branch**
+
+```bash
+git push origin feature/amazing-feature
+```
+
+5. **Open a Pull Request**
+
+### Development Guidelines
+
+- Follow PEP 8 for Python code
+- Use TypeScript for frontend code
+- Write tests for new features
+- Update documentation
+- Keep commits atomic and well-described
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Mistral AI](https://mistral.ai/) for the LLM
+- [Picovoice](https://picovoice.ai/) for wake word detection
+- [Whisper](https://github.com/openai/whisper) for speech recognition
+- [FastAPI](https://fastapi.tiangolo.com/) for the backend
+- [Electron](https://www.electronjs.org/) for the desktop app
+
+## 📞 Support
+
+- Open an issue for bugs
+- Start a discussion for feature requests
+- Join our Discord community (coming soon)
 
 ---
 
-**Note:** All AI processing is done locally. No data is sent to external servers unless you configure additional MCP servers in the future.
+**Note:** All AI processing is done locally. No data is sent to external servers unless you configure additional MCP servers.
