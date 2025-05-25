@@ -4,28 +4,47 @@ from dotenv import load_dotenv
 load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api import chat
-from .api import tts
-from .api import stt
-from .api import passive_listen
+from .api import chat, tts, stt, passive_listen
 
-app = FastAPI(title="AI Desktop Assistant API")
+app = FastAPI(
+    title="Jarvis AI Assistant API",
+    description="""
+    A comprehensive AI assistant API featuring:
+    - Chat with LLaMA model
+    - Text-to-Speech using macOS 'say' command
+    - Speech-to-Text using Whisper
+    - Passive listening with wake word detection
+    """,
+    version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+    contact={
+        "name": "Jarvis AI Assistant",
+        "url": "https://github.com/yourusername/jarvis",
+    },
+    license_info={
+        "name": "MIT",
+        "url": "https://opensource.org/licenses/MIT",
+    }
+)
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React dev server
+    allow_origins=["*"],  # In production, replace with specific origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(chat.router, prefix="/api")
-app.include_router(tts.router, prefix="/api")
-app.include_router(stt.router, prefix="/api")
-app.include_router(passive_listen.router, prefix="/api")
+# Include routers with tags for better organization
+app.include_router(chat.router, prefix="/api", tags=["Chat"])
+app.include_router(tts.router, prefix="/api", tags=["Text-to-Speech"])
+app.include_router(stt.router, prefix="/api", tags=["Speech-to-Text"])
+app.include_router(passive_listen.router, prefix="/api", tags=["Passive Listening"])
 
-@app.get("/")
-async def root():
-    return {"message": "AI Desktop Assistant API is running"}
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint to verify API status."""
+    return {"status": "healthy"}
