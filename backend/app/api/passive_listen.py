@@ -43,6 +43,8 @@ async def passive_listen():
         if not listener._thread or not listener._thread.is_alive():
             print("Listener thread not active, starting.")
             listener.start()
+            # Give the listener a moment to initialize
+            await asyncio.sleep(0.5)
         else:
             print("Listener thread already active.")
 
@@ -50,8 +52,20 @@ async def passive_listen():
         audio = listener.get_audio(timeout=5)  # Reduced timeout
 
         if not audio:
-            print("Error: get_audio returned None (queue empty after timeout?)")
-            raise ValueError("No audio captured or retrieved from listener queue.")
+            print("No audio captured within timeout period.")
+            return {
+                "status": "waiting",
+                "message": "Listening for wake word...",
+                "text": ""
+            }
+
+        if len(audio) < 1024:  # Minimum audio length check
+            print(f"Audio too short ({len(audio)} bytes)")
+            return {
+                "status": "too_short",
+                "message": "Audio captured was too short to process.",
+                "text": ""
+            }
 
         print(f"Received {len(audio)} bytes of audio from queue, transcribing...")
         
@@ -59,15 +73,31 @@ async def passive_listen():
         text = await process_audio(audio, listener.sample_rate)
         print(f"Transcription Result: {text}")
 
-        return {"text": text}
+        if not text.strip():
+            return {
+                "status": "no_speech",
+                "message": "No speech detected in the audio.",
+                "text": ""
+            }
+
+        return {
+            "status": "success",
+            "message": "Successfully transcribed speech.",
+            "text": text
+        }
 
     except Empty:
-        print("Error in /passive-listen: Queue timeout - No audio received after wake word and speech.")
-        raise HTTPException(status_code=408, detail="Timeout waiting for speech after wake word.")
-    except ValueError as ve:
-        print(f"Error in /passive-listen: {ve}")
-        raise HTTPException(status_code=400, detail=str(ve))
+        print("Queue timeout - No audio received after wake word and speech.")
+        return {
+            "status": "timeout",
+            "message": "Timeout waiting for speech after wake word.",
+            "text": ""
+        }
     except Exception as e:
         print("Error in /passive-listen endpoint:", e)
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "status": "error",
+            "message": f"An error occurred: {str(e)}",
+            "text": ""
+        }

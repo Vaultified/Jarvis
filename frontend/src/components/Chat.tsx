@@ -38,106 +38,132 @@ const Chat: React.FC = () => {
   }, [messages]);
 
   const awaitPassiveSpeech = async () => {
-    if (isPassiveListening) {
-      console.log("Frontend: Passive listening already active, skipping.");
+    if (!isPassiveListening) {
       return;
     }
-
-    setIsPassiveListening(true);
-    console.log(
-      `Frontend: Awaiting passive speech via /api/passive-listen (Attempt ${
-        passiveListenRetryCount + 1
-      })`
-    );
-
     try {
-      const res = await fetch("http://localhost:8000/api/passive-listen", { method: "POST" });
+      const response = await fetch("http://localhost:8000/api/passive-listen", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`Passive listen API error: ${res.status} - ${errorText}`);
-      }
-
-      const data = await res.json();
-
-      setIsPassiveListening(false);
-      setPassiveListenRetryCount(0);
-
-      if (data.text && data.text.trim()) {
-        console.log("Frontend: Received transcribed text:", data.text);
-        const userMessage: Message = { role: "user", content: data.text };
-        setMessages((prev) => [...prev, userMessage]);
-        setInput("");
-
-        setIsLoading(true);
-        try {
-          const response = await fetch("http://localhost:8000/api/chat", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ prompt: data.text }),
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(
-              `Chat network response after passive listen was not ok: ${response.status} - ${errorText}`
-            );
-          }
-
-          const respData = await response.json();
-          const assistantMessage: Message = { role: "assistant", content: respData.response };
-          setMessages((prev) => [...prev, assistantMessage]);
-          speakText(respData.response);
-        } catch (chatError: any) {
-          console.error("Chat API error after passive listen:", chatError);
-          const errorMessage: Message = {
-            role: "assistant",
-            content: `Sorry, I had trouble processing that request after listening. Error: ${
-              chatError.message || chatError
-            }`,
-          };
-          setMessages((prev) => [...prev, errorMessage]);
-        } finally {
-          setIsLoading(false);
-          setTimeout(awaitPassiveSpeech, 1000);
-        }
-      } else {
-        console.log("Frontend: Received empty transcribed text.");
+      if (!response.ok) {
+        console.error(`HTTP error! status: ${response.status}`);
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
-            content: "Didn't catch that. Please try again after saying 'Hey Jarvis'.",
+            content: `Error connecting to listening service: HTTP status ${response.status}.`,
           },
         ]);
-        setTimeout(awaitPassiveSpeech, 1000);
+        if (isPassiveListening) {
+          setTimeout(awaitPassiveSpeech, 3000);
+        }
+        return;
       }
-    } catch (error: any) {
-      console.error("Passive listen API error:", error);
-      setIsPassiveListening(false);
 
-      if (passiveListenRetryCount < MAX_PASSIVE_LISTEN_RETRIES) {
-        const nextRetryCount = passiveListenRetryCount + 1;
-        setPassiveListenRetryCount(nextRetryCount);
-        console.log(
-          `Frontend: Retrying passive listen in ${
-            RETRY_DELAY_MS / 1000
-          } seconds (Retry ${nextRetryCount}/${MAX_PASSIVE_LISTEN_RETRIES})`
-        );
-        setTimeout(awaitPassiveSpeech, RETRY_DELAY_MS);
-      } else {
-        console.error("Frontend: Max passive listen retries reached.");
-        setPassiveListenRetryCount(0);
+      const data = await response.json();
+      console.log("Passive listen response:", data);
 
-        const errorMessage: Message = {
-          role: "assistant",
-          content: `Sorry, I encountered a persistent issue with voice input. Error: ${
-            error.message || error
-          }`,
-        };
-        setMessages((prev) => [...prev, errorMessage]);
+      switch (data.status) {
+        case "success":
+          if (data.text && data.text.trim()) {
+            const transcribedText = data.text.trim();
+            console.log("Transcribed Text:", transcribedText);
+
+            setMessages((prev) => [...prev, { role: "user", content: transcribedText }]);
+            setInput("");
+
+            const chatResponse = await fetch("http://localhost:8000/api/chat", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ prompt: transcribedText }),
+            });
+
+            if (!chatResponse.ok) {
+              const chatErrorData = await chatResponse.json();
+              console.error(`Chat API error! status: ${chatResponse.status}`, chatErrorData);
+              setMessages((prev) => [
+                ...prev,
+                {
+                  role: "assistant",
+                  content: `Error getting response from AI: ${
+                    chatErrorData.detail || "Unknown error"
+                  }`,
+                },
+              ]);
+            } else {
+              const chatData = await chatResponse.json();
+              console.log("Chat response:", chatData);
+
+              setMessages((prev) => [...prev, { role: "assistant", content: chatData.response }]);
+
+              const speakResponse = await fetch("http://localhost:8000/api/speak", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ text: chatData.response }),
+              });
+
+              if (!speakResponse.ok) {
+                console.error("Failed to speak response", await speakResponse.text());
+              }
+            }
+          } else {
+            console.log("Success status but no text returned.");
+          }
+          break;
+
+        case "waiting":
+          console.log(data.message);
+          break;
+
+        case "timeout":
+          console.log(data.message);
+          break;
+
+        case "too_short":
+          console.log(data.message);
+          break;
+
+        case "no_speech":
+          console.log(data.message);
+          break;
+
+        case "error":
+          console.error("Error in passive listening:", data.message);
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: `Listening error: ${data.message}. Please try again.`,
+            },
+          ]);
+          break;
+
+        default:
+          console.warn("Unknown status from passive listening:", data.status);
+      }
+
+      if (isPassiveListening) {
+        setTimeout(awaitPassiveSpeech, 100);
+      }
+    } catch (error) {
+      console.error("Caught error in passive listening:", error);
+      if (isPassiveListening) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "An unexpected listening error occurred. Please restart listening.",
+          },
+        ]);
+        setTimeout(awaitPassiveSpeech, 5000);
       }
     }
   };

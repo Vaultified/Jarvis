@@ -20,6 +20,8 @@ class PassiveListener:
         self._stop_event = threading.Event()
         self._thread = None
         self._processing = False
+        self._current_audio = []
+        self._audio_buffer = queue.Queue()
 
         # Initialize Porcupine
         key = os.getenv("PORCUPINE_ACCESS_KEY")
@@ -28,6 +30,13 @@ class PassiveListener:
             keywords=[self.keyword],
             sensitivities=[self.sensitivity]
         )
+
+    def _audio_callback(self, indata, frames, time, status):
+        """Callback for audio input stream."""
+        if status:
+            print(f"Audio callback status: {status}")
+        if not self._stop_event.is_set():
+            self._audio_buffer.put(indata.copy())
 
     def start(self):
         if self._thread and self._thread.is_alive():
@@ -44,36 +53,45 @@ class PassiveListener:
 
     def _run(self):
         try:
-            with sd.RawInputStream(
+            with sd.InputStream(
                 samplerate=self.porcupine.sample_rate,
-                blocksize=512,
-                dtype='int16',
-                channels=1
+                channels=1,
+                callback=self._audio_callback,
+                dtype=np.int16,
+                blocksize=self.porcupine.frame_length
             ) as stream:
                 print("PassiveListener: Listening for wake word...")
                 while not self._stop_event.is_set():
-                    if self._processing:
-                        time.sleep(0.1)
+                    try:
+                        # Get audio data from the buffer
+                        audio_chunk = self._audio_buffer.get(timeout=0.1)
+                        if audio_chunk is None:
+                            continue
+
+                        # Process with Porcupine
+                        pcm16 = audio_chunk.flatten().astype(np.int16)
+                        keyword_index = self.porcupine.process(pcm16)
+
+                        if keyword_index >= 0:
+                            print("Wake word detected!")
+                            self._record_until_silence()
+                    except queue.Empty:
                         continue
-                        
-                    pcm = stream.read(512)[0]
-                    pcm16 = np.frombuffer(pcm, dtype=np.int16)
-                    keyword_index = self.porcupine.process(pcm16)
-                    
-                    if keyword_index >= 0:
-                        print("Wake word detected!")
-                        self._record_until_silence(stream)
+                    except Exception as e:
+                        print(f"Error processing audio chunk: {e}")
+                        continue
+
         except Exception as e:
             print(f"Error in passive listener thread: {e}")
             traceback.print_exc()
-
-    def _record_until_silence(self, stream):
+    
+    def _record_until_silence(self):
         if self._processing:
             return
             
         self._processing = True
         self.listening = True
-        audio_frames = []
+        self._current_audio = []  # Reset audio buffer
         silence_start = None
         vad_frame_ms = 30
         vad_frame_bytes = int(self.sample_rate * vad_frame_ms / 1000) * 2
@@ -81,41 +99,55 @@ class PassiveListener:
         print("PassiveListener: Recording after wake word...")
         try:
             while not self._stop_event.is_set():
-                pcm = stream.read(int(self.sample_rate * 0.1 / 1000) * 2)[0]
-                audio_frames.append(pcm)
-
-                if len(b"".join(audio_frames)) >= vad_frame_bytes:
-                    vad_chunk = b"".join(audio_frames)[-vad_frame_bytes:]
-                    is_speech = self.vad.is_speech(vad_chunk, self.sample_rate)
-
-                    if is_speech:
-                        silence_start = None
-                    else:
-                        if silence_start is None:
-                            silence_start = time.time()
-                        elif time.time() - silence_start > self.silence_timeout:
-                            print("PassiveListener: Silence detected, stopping recording.")
-                            break
-
-            # Clear the queue before putting new audio
-            while not self.audio_queue.empty():
                 try:
-                    self.audio_queue.get_nowait()
-                except queue.Empty:
-                    break
+                    audio_chunk = self._audio_buffer.get(timeout=0.1)
+                    if audio_chunk is None:
+                        continue
 
-            full_audio = b"".join(audio_frames)
-            if full_audio:
-                print(f"Putting {len(full_audio)} bytes of audio onto queue.")
-                self.audio_queue.put(full_audio, timeout=1.0)
-            else:
-                print("No audio recorded to put onto queue.")
+                    self._current_audio.append(audio_chunk)
+                    
+                    if len(self._current_audio) * audio_chunk.size >= vad_frame_bytes:
+                        # Get the last frame for VAD
+                        vad_chunk = self._current_audio[-1].flatten().astype(np.int16)
+                        is_speech = self.vad.is_speech(vad_chunk.tobytes(), self.sample_rate)
+
+                        if is_speech:
+                            silence_start = None
+                        else:
+                            if silence_start is None:
+                                silence_start = time.time()
+                            elif time.time() - silence_start > self.silence_timeout:
+                                print("PassiveListener: Silence detected, stopping recording.")
+                                break
+
+                except queue.Empty:
+                    continue
+
+            # Combine all recorded audio
+            if self._current_audio:
+                full_audio = np.concatenate(self._current_audio)
+                audio_bytes = full_audio.flatten().astype(np.int16).tobytes()
+                
+                # Clear the queue before putting new audio
+                while not self.audio_queue.empty():
+                    try:
+                        self.audio_queue.get_nowait()
+                    except queue.Empty:
+                        break
+
+                if len(audio_bytes) > 0:
+                    print(f"Putting {len(audio_bytes)} bytes of audio onto queue.")
+                    self.audio_queue.put(audio_bytes, timeout=1.0)
+                else:
+                    print("No audio recorded to put onto queue.")
+
         except Exception as e:
             print(f"Error during recording: {e}")
             traceback.print_exc()
         finally:
             self.listening = False
             self._processing = False
+            self._current_audio = []
 
     def get_audio(self, timeout=5):
         try:

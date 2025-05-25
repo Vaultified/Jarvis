@@ -34,3 +34,7 @@ frontend/.env
 backend/models/ 
 
 llama.cpp/
+
+# Google Drive
+backend/token.json
+backend/credentials.json
