@@ -1,34 +1,24 @@
 import os
 from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from .api import chat, tts, stt, passive_listen, auth
+from .core.config import settings
 
 load_dotenv()
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from .api import chat, tts, stt, passive_listen, plugins, auth
-
 app = FastAPI(
-    title="Jarvis AI Assistant API",
+    title="Jarvis API",
     description="""
-    A comprehensive AI assistant API featuring:
-    - Chat with LLaMA model
-    - Text-to-Speech using macOS 'say' command
-    - Speech-to-Text using Whisper
-    - Passive listening with wake word detection
-    - Plugin system for extensible functionality
-    - Google OAuth2 authentication for Drive and Gmail
+    Backend API for Jarvis, an AI-powered voice assistant.
+    
+    Features:
+    - Voice transcription (STT)
+    - Text-to-speech (TTS)
+    - Chat with AI
+    - Passive listening for wake word
+    - User authentication
     """,
-    version="1.0.0",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
-    openapi_url="/api/openapi.json",
-    contact={
-        "name": "Jarvis AI Assistant",
-        "url": "https://github.com/yourusername/jarvis",
-    },
-    license_info={
-        "name": "MIT",
-        "url": "https://opensource.org/licenses/MIT",
-    }
+    version="1.0.0"
 )
 
 # Configure CORS
@@ -40,13 +30,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers with tags for better organization
+# Include routers
 app.include_router(chat.router, prefix="/api", tags=["Chat"])
-app.include_router(tts.router, prefix="/api", tags=["Text-to-Speech"])
-app.include_router(stt.router, prefix="/api", tags=["Speech-to-Text"])
-app.include_router(passive_listen.router, prefix="/api", tags=["Passive Listening"])
-app.include_router(plugins.router, prefix="/api", tags=["Plugins"])
-app.include_router(auth.router, prefix="/api", tags=["Authentication"])
+app.include_router(tts.router, prefix="/api", tags=["TTS"])
+app.include_router(stt.router, prefix="/api", tags=["STT"])
+app.include_router(passive_listen.router, prefix="/api", tags=["Passive Listen"])
+app.include_router(auth.router, prefix="/api", tags=["Auth"])
+
+@app.get("/")
+async def root():
+    """Root endpoint that returns API information."""
+    return {
+        "name": "Jarvis API",
+        "version": "1.0.0",
+        "status": "running",
+        "documentation": "/docs"
+    }
 
 @app.get("/api/health")
 async def health_check():

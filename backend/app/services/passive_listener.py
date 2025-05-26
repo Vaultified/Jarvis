@@ -7,6 +7,10 @@ import threading
 import time
 import os
 import traceback
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 class PassiveListener:
     def __init__(self, keyword="jarvis", sensitivity=0.7, silence_timeout=1.5, sample_rate=16000):
@@ -24,7 +28,10 @@ class PassiveListener:
         self._audio_buffer = queue.Queue()
 
         # Initialize Porcupine
-        key = os.getenv("PORCUPINE_ACCESS_KEY")
+        key = os.getenv("porcupine_access_key")
+        if not key:
+            raise ValueError("porcupine_access_key environment variable is not set")
+        print(f"Picovoice Access Key: {key[:5]}...")  # Only print first 5 chars for security
         self.porcupine = pvporcupine.create(
             access_key=key,
             keywords=[self.keyword],
