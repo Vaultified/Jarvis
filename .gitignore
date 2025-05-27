@@ -38,3 +38,5 @@ llama.cpp/
 # Google Drive
 backend/token.json
 backend/credentials.json
+backend/python-sdk
+backend/mcp

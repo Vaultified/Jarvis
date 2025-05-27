@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False  # This allows for case-insensitive matching
+        extra = "ignore"  # This will ignore extra fields like pythonpath
 
 @lru_cache()
 def get_settings():
