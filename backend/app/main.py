@@ -2,20 +2,17 @@ import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from .api import chat, tts, stt, passive_listen, auth
+from .api import chat, auth, gmail
 from .core.config import settings
 
 load_dotenv()
 app = FastAPI(
     title="Jarvis API",
     description="""
-    Backend API for Jarvis, an AI-powered voice assistant.
+    Backend API for Jarvis, an AI-powered assistant.
     
     Features:
-    - Voice transcription (STT)
-    - Text-to-speech (TTS)
     - Chat with AI
-    - Passive listening for wake word
     - User authentication
     """,
     version="1.0.0"
@@ -32,10 +29,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(chat.router, prefix="/api", tags=["Chat"])
-app.include_router(tts.router, prefix="/api", tags=["TTS"])
-app.include_router(stt.router, prefix="/api", tags=["STT"])
-app.include_router(passive_listen.router, prefix="/api", tags=["Passive Listen"])
 app.include_router(auth.router, prefix="/api", tags=["Auth"])
+app.include_router(gmail.router, prefix="/api/gmail", tags=["gmail"])
 
 @app.get("/")
 async def root():

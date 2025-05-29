@@ -1,47 +1,41 @@
 import React, { useState, useRef, useEffect } from "react";
 import { processMessage } from "../services/chatService";
-import "../styles/Chat.css";
+import "./Chat.css";
 
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-  isGmail?: boolean;
-  success?: boolean;
-  error?: string;
-}
-
-const Chat: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
+const Chat = () => {
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
 
-    const userMessage: Message = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMessage]);
+    const userMessage = input.trim();
     setInput("");
+    setMessages((prev) => [...prev, { type: "user", content: userMessage }]);
     setIsLoading(true);
 
     try {
-      const response = await processMessage(input);
+      const response = await processMessage(userMessage);
 
       if (response.type === "gmail") {
         setMessages((prev) => [
           ...prev,
           {
-            role: "assistant",
-            content: response.message || "",
+            type: "assistant",
+            content: response.message,
             isGmail: true,
             success: response.success,
             error: response.error,
@@ -51,18 +45,20 @@ const Chat: React.FC = () => {
         setMessages((prev) => [
           ...prev,
           {
-            role: "assistant",
-            content: response.message || response.content || "",
+            type: "assistant",
+            content: response.message || response.content,
           },
         ]);
       }
     } catch (error) {
-      console.error("Chat error:", error);
-      const errorMessage: Message = {
-        role: "assistant",
-        content: "Sorry, I encountered an error. Please try again.",
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "assistant",
+          content: "Sorry, I encountered an error processing your request.",
+          isError: true,
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -70,11 +66,11 @@ const Chat: React.FC = () => {
 
   return (
     <div className="chat-container">
-      <div className="chat-messages">
+      <div className="messages-container">
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`message ${message.role === "user" ? "user-message" : "assistant-message"} ${
+            className={`message ${message.type} ${message.isError ? "error" : ""} ${
               message.isGmail ? "gmail" : ""
             }`}
           >
@@ -88,19 +84,28 @@ const Chat: React.FC = () => {
             </div>
           </div>
         ))}
-        {isLoading && <div className="message assistant-message loading">Thinking...</div>}
+        {isLoading && (
+          <div className="message assistant">
+            <div className="message-content">
+              <div className="typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
-      <form onSubmit={handleSubmit} className="chat-input-form">
+      <form onSubmit={handleSubmit} className="input-form">
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Type your message..."
-          className="chat-input"
           disabled={isLoading}
         />
-        <button type="submit" className="send-button" disabled={isLoading || !input.trim()}>
+        <button type="submit" disabled={isLoading}>
           Send
         </button>
       </form>

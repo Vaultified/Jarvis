@@ -4,9 +4,6 @@ python-dotenv==1.1.0
 pydantic==2.11.5
 pydantic-settings==2.2.1
 ctransformers==0.2.27
-sounddevice
-openai-whisper
-whisper
 google-auth==2.27.0
 google-auth-oauthlib==1.2.0
 google-api-python-client==2.118.0
@@ -14,6 +11,3 @@ python-multipart
 numpy
 # Use pre-built wheel for M1 Mac
 llama-cpp-python --extra-index-url https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cpu
-pvporcupine==3.0.0
-webrtcvad==2.0.10
-scipy

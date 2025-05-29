@@ -3,12 +3,11 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     # API Keys
-    porcupine_access_key: str  # Changed from PICOVOICE_ACCESS_KEY to match .env
     OPENAI_API_KEY: str = ""
     
     # Model paths
     llama_cpp_path: str = "../llama.cpp/main"
-    model_path: str = "models/llama-2-7b-chat.gguf"
+    model_path: str = "models/llama-2-7b-chat.gguf"  # Using the existing model file
     
     # Google OAuth2
     GOOGLE_CLIENT_ID: str = ""
