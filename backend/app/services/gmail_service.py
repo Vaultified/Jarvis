@@ -16,10 +16,6 @@ def get_gmail_service():
     """Initialize and return Gmail service with OAuth2 credentials."""
     creds = get_google_credentials()
     print("\n=== Gmail Service Initialization ===")
-    print("Credentials valid:", creds.valid)
-    print("Credentials expired:", creds.expired)
-    print("Has refresh token:", bool(creds.refresh_token))
-    print("Scopes:", creds.scopes)
     return build('gmail', 'v1', credentials=creds, cache_discovery=False)
 
 @mcp.tool()

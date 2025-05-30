@@ -14,10 +14,7 @@ def main():
     
     # Exchange the code for tokens
     tokens = auth.handle_callback(code)
-    print("\nAuthentication successful! Here are your tokens:")
-    print(f"Access Token: {tokens['access_token']}")
-    print(f"Refresh Token: {tokens['refresh_token']}")
-    print(f"Scopes: {tokens['scopes']}")
+    print("\nAuthentication successful!")
     
     # Verify we can get Gmail service
     try:

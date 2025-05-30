@@ -7,13 +7,11 @@ def download_mistral_model():
     os.makedirs(models_dir, exist_ok=True)
     
     # Download the model
-    print("Downloading Mistral model...")
     model_path = hf_hub_download(
         repo_id="TheBloke/Mistral-7B-v0.1-GGUF",
         filename="mistral-7b-v0.1.Q4_0.gguf",
         local_dir=models_dir
     )
-    print(f"Model downloaded successfully to: {model_path}")
     return model_path
 
 if __name__ == "__main__":

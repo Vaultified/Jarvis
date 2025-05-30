@@ -124,13 +124,11 @@ def find_credentials_file():
     # Use absolute path for backend credentials
     backend_path = '/Users/sujinsr/Documents/jarvis/backend/credentials.json'
     if os.path.exists(backend_path):
-        print(f"Found credentials in backend: {backend_path}")
         return backend_path
     
     # Check services directory as fallback
     services_path = os.path.join(os.path.dirname(__file__), 'credentials.json')
     if os.path.exists(services_path):
-        print(f"Found credentials in services directory: {services_path}")
         return services_path
     
     raise FileNotFoundError(f"credentials.json not found in {backend_path} or {services_path}")
@@ -141,16 +139,12 @@ def get_google_credentials():
     token_path = os.path.join(os.path.dirname(__file__), '..', '..', 'token.json')
     credentials_path = find_credentials_file()
     
-    print(f"Using token path: {token_path}")
-    print(f"Using credentials path: {credentials_path}")
-    
     # Load credentials file
     print("\n=== OAuth Configuration ===")
     print("Loading credentials file...")
     try:
         with open(credentials_path, 'r') as f:
             content = f.read()
-            print(f"Raw file content: {content}")
             creds_data = json.loads(content)
             if not creds_data:
                 raise ValueError("Empty credentials.json file")
@@ -161,8 +155,6 @@ def get_google_credentials():
                 raise ValueError("Missing 'web' section in credentials.json")
             
             print("\nCredentials file contents:")
-            print(f"Client ID: {web_creds.get('client_id')}")
-            print(f"Project ID: {web_creds.get('project_id')}")
             print("\nRedirect URIs:")
             for uri in web_creds.get('redirect_uris', []):
                 print(f"  - {uri}")
