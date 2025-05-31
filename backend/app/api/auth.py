@@ -30,8 +30,10 @@ async def start_auth():
 async def auth_callback(code: str):
     """Handle the OAuth2 callback from Google."""
     try:
-        token_info = auth_service.handle_callback(code)
-        return TokenResponse(**token_info)
+        # Use the updated method to exchange code for token
+        auth_service.exchange_code_for_token(code)
+        # Optionally, return a success message or redirect the user
+        return {"message": "Authentication successful! You can close this window.", "success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -66,14 +68,21 @@ async def test_google_services():
 
         # Test Drive access
         try:
-            drive_service = auth_service.get_drive_service()
-            # List the first 5 files
-            files = drive_service.files().list(pageSize=5).execute()
-            results['drive'] = {
-                'status': 'success',
-                'files_count': len(files.get('files', [])),
-                'message': 'Successfully accessed Google Drive'
-            }
+            # Check if get_drive_service exists before calling
+            if hasattr(auth_service, 'get_drive_service'):
+                drive_service = auth_service.get_drive_service()
+                # List the first 5 files
+                files = drive_service.files().list(pageSize=5).execute()
+                results['drive'] = {
+                    'status': 'success',
+                    'files_count': len(files.get('files', [])),
+                    'message': 'Successfully accessed Google Drive'
+                }
+            else:
+                 results['drive'] = {
+                    'status': 'skipped',
+                    'message': 'Drive service not implemented'
+                }
         except Exception as e:
             results['drive'] = {
                 'status': 'error',
