@@ -5,9 +5,6 @@ import "../styles/Chat.css";
 interface Message {
   role: "user" | "assistant";
   content: string;
-  isGmail?: boolean;
-  success?: boolean;
-  error?: string;
 }
 
 const Chat: React.FC = () => {
@@ -36,26 +33,13 @@ const Chat: React.FC = () => {
     try {
       const response = await processMessage(input);
 
-      if (response.type === "gmail") {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: response.message || "",
-            isGmail: true,
-            success: response.success,
-            error: response.error,
-          },
-        ]);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: response.message || response.content || "",
-          },
-        ]);
-      }
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: response.message || response.content || "",
+        },
+      ]);
     } catch (error) {
       console.error("Chat error:", error);
       const errorMessage: Message = {
@@ -74,18 +58,9 @@ const Chat: React.FC = () => {
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`message ${message.role === "user" ? "user-message" : "assistant-message"} ${
-              message.isGmail ? "gmail" : ""
-            }`}
+            className={`message ${message.role === "user" ? "user-message" : "assistant-message"}`}
           >
-            <div className="message-content">
-              {message.content}
-              {message.isGmail && (
-                <div className={`gmail-status ${message.success ? "success" : "error"}`}>
-                  {message.success ? "✓" : "✗"}
-                </div>
-              )}
-            </div>
+            <div className="message-content">{message.content}</div>
           </div>
         ))}
         {isLoading && <div className="message assistant-message loading">Thinking...</div>}

@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from .api import chat, auth, gmail
+from .api import chat, auth, gmail, drive
 from .core.config import settings
 
 load_dotenv()
@@ -14,6 +14,8 @@ app = FastAPI(
     Features:
     - Chat with AI
     - User authentication
+    - Gmail integration
+    - Google Drive integration
     """,
     version="1.0.0"
 )
@@ -30,7 +32,8 @@ app.add_middleware(
 # Include routers
 app.include_router(chat.router, prefix="/api", tags=["Chat"])
 app.include_router(auth.router, prefix="/api", tags=["Auth"])
-app.include_router(gmail.router, prefix="/api/gmail", tags=["gmail"])
+app.include_router(gmail.router, prefix="/api/gmail", tags=["Gmail"])
+app.include_router(drive.router, prefix="/api/drive", tags=["Google Drive"])
 
 @app.get("/")
 async def root():
