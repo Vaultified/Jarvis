@@ -105,7 +105,6 @@ def read_file_content(file_id: str) -> Dict:
              done = False
              while done is False:
                  status, done = downloader.next_chunk()
-                 # print(f"Download {int(status.progress() * 100)}%.") # Optional: progress print
              file_content_io.seek(0)
              content = file_content_io.read().decode('utf-8')
              
@@ -117,7 +116,6 @@ def read_file_content(file_id: str) -> Dict:
             done = False
             while done is False:
                 status, done = downloader.next_chunk()
-                # print(f"Download {int(status.progress() * 100)}%.") # Optional: progress print
             file_content_io.seek(0)
             
             # Use PyPDF2 to read text from the PDF
@@ -157,6 +155,5 @@ def read_file_content(file_id: str) -> Dict:
 if __name__ == "__main__":
     # This block allows you to run the MCP server directly for testing
     # You might need to manually trigger authentication before running this
-    # by running a command that calls get_google_credentials() first.
     print("Running Google Drive MCP Server...")
     mcp.run() 
