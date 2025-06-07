@@ -1,7 +1,7 @@
-from auth_service import AuthService
+from .auth_service import AuthService
 
 def main():
-    # wate an instance of AuthService
+    # Create an instance of AuthService
     auth = AuthService()
     
     # Get the authorization URL

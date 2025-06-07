@@ -90,30 +90,66 @@ class AuthService:
             print(f"Error type: {type(e).__name__}")
             print(f"Error message: {str(e)}")
             self.credentials = None
-            
-    def exchange_code_for_token(self, code: str) -> None:
-        """Exchanges authorization code for credentials and saves them."""
-        try:
-            redirect_uri = 'http://localhost:8000/api/auth/callback'
-            
-            flow = InstalledAppFlow.from_client_secrets_file(
-                str(self.credentials_path),
-                self.SCOPES,
-                redirect_uri=redirect_uri
+
+    def get_auth_url(self) -> str:
+        """Get the authorization URL for OAuth2 flow."""
+        if not self.credentials_path.exists():
+            raise FileNotFoundError(
+                f"Credentials file not found at {self.credentials_path}. "
+                "Please download your OAuth2 credentials from Google Cloud Console "
+                "and save them as 'credentials.json' in the backend directory."
             )
-            
-            # Fetch the token using the provided code
-            flow.fetch_token(code=code)
-            self.credentials = flow.credentials
-            
-            # Save the new credentials
-            self._save_credentials()
-            
-        except Exception as e:
-            print(f"\n=== Token Exchange Error ===")
-            print(f"Error type: {type(e).__name__}")
-            print(f"Error message: {str(e)}")
-            raise e # Re-raise the exception after logging
+        
+        # Set the redirect URI to match Google Console exactly
+        redirect_uri = 'http://localhost:8000/api/auth/callback'
+        
+        flow = InstalledAppFlow.from_client_secrets_file(
+            str(self.credentials_path),
+            self.SCOPES,
+            redirect_uri=redirect_uri
+        )
+        
+        # Get the authorization URL
+        auth_url, _ = flow.authorization_url(
+            access_type='offline',
+            include_granted_scopes='true'
+        )
+        
+        return auth_url
+
+    def handle_callback(self, code: str) -> Dict:
+        """Handle the OAuth2 callback and exchange code for tokens."""
+        if not self.credentials_path.exists():
+            raise FileNotFoundError(
+                f"Credentials file not found at {self.credentials_path}. "
+                "Please download your OAuth2 credentials from Google Cloud Console "
+                "and save them as 'credentials.json' in the backend directory."
+            )
+        
+        # Set the redirect URI to match Google Console exactly
+        redirect_uri = 'http://localhost:8000/api/auth/callback'
+        
+        flow = InstalledAppFlow.from_client_secrets_file(
+            str(self.credentials_path),
+            self.SCOPES,
+            redirect_uri=redirect_uri
+        )
+        
+        # Exchange the code for tokens
+        flow.fetch_token(code=code)
+        self.credentials = flow.credentials
+        
+        # Save the credentials
+        self._save_credentials()
+        
+        return {
+            'token': self.credentials.token,
+            'refresh_token': self.credentials.refresh_token,
+            'token_uri': self.credentials.token_uri,
+            'client_id': self.credentials.client_id,
+            'client_secret': self.credentials.client_secret,
+            'scopes': self.credentials.scopes
+        }
     
     def _save_credentials(self) -> None:
         """Save credentials to token file."""
@@ -127,7 +163,7 @@ class AuthService:
                 'scopes': self.credentials.scopes
             }
             with open(self.token_path, 'w') as token:
-                json.dump(token_data, token, indent=2)
+                json.dump(token_data, token)
     
     def get_credentials(self) -> Optional[Credentials]:
         """Get the current credentials, refreshing if necessary."""
