@@ -102,57 +102,23 @@ Assistant: I don't have access to real-time weather information, but I'd be happ
             logger.info(f"Preparing to send email to {to}")
             logger.info(f"Subject: {subject}")
             logger.info(f"Body: {body}")
-            
-            # Prepare the request payload
-            payload = {
-                "to": [to],
-                "subject": subject,
-                "body": body
-            }
-            logger.info(f"Request payload: {payload}")
-            
-            # Make the request to the email endpoint with increased timeout
-            logger.info("Sending request to email endpoint...")
-            try:
-                response = requests.post(
-                    "http://localhost:8000/api/gmail/send",
-                    json=payload,
-                    timeout=60  # Increased timeout to 60 seconds
-                )
-                
-                logger.info(f"Email endpoint response status: {response.status_code}")
-                response.raise_for_status()
-                
-                success_response = response.json()
-                logger.info(f"Email endpoint response: {success_response}")
-                
-                if success_response.get("success"):
-                    return "Email sent successfully! Please check your inbox."
-                else:
-                    return f"Email sending failed: {success_response.get('message', 'Unknown error')}"
-                    
-            except requests.exceptions.Timeout:
-                # If we get a timeout, check if the email was actually sent
-                logger.info("Initial request timed out, checking if email was sent...")
-                try:
-                    # Make a quick check request to verify email status
-                    check_response = requests.get(
-                        "http://localhost:8000/api/gmail/status",
-                        timeout=5
-                    )
-                    if check_response.status_code == 200:
-                        status_data = check_response.json()
-                        if status_data.get("service_available"):
-                            return "Email was sent successfully! Please check your inbox."
-                except Exception as e:
-                    logger.error(f"Error checking email status: {str(e)}")
-                
-                # If we can't verify, return a more informative message
+
+            # Use the MCP Gmail service instead of HTTP request
+            from app.services.gmail_service import send_email  # Import MCP tool
+
+            # Always pass a list for 'to' as required by gmail_service
+            result = send_email(to=[to], subject=subject, body=body)
+            logger.info(f"Gmail MCP send_email result: {result}")
+
+            if isinstance(result, dict) and result.get("success"):
+                return "Email sent successfully! Please check your inbox."
+            elif isinstance(result, dict) and result.get("message"):
+                return f"Email sending failed: {result.get('message', 'Unknown error')}"
+            elif isinstance(result, str):
+                return result
+            else:
                 return "The email may have been sent successfully. Please check your inbox to confirm."
-                
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request error while sending email: {str(e)}")
-            return f"I couldn't send the email due to a request error: {str(e)}"
+
         except Exception as e:
             logger.error(f"Unexpected error while sending email: {str(e)}", exc_info=True)
             return f"An unexpected error occurred while trying to send the email: {str(e)}"
