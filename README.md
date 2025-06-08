@@ -1,6 +1,6 @@
-# Jarvis - Local LLM Assistant with Gmail Integration
+# Jarvis - Local LLM Assistant with MCP Integration
 
-Jarvis is an AI assistant that runs locally using LLaMA 2, featuring Gmail integration through an MCP (Model-Controller-Provider) server architecture. The system allows natural language interaction for sending emails and will soon support Google Drive file operations.
+Jarvis is an AI assistant that runs locally using LLaMA 2, featuring seamless integration with Gmail and Google Drive through the MCP (Model-Controller-Provider) server architecture. The system allows natural language interaction for sending emails, managing files, and will soon support additional personal productivity tools such as Calendar and real-time weather.
 
 ## Features
 
@@ -12,24 +12,33 @@ Jarvis is an AI assistant that runs locally using LLaMA 2, featuring Gmail integ
   - Natural language processing for chat interactions
   - Customizable model parameters and response generation
 
-- **Gmail Integration**
+- **Gmail Integration (via MCP)**
+
   - MCP server architecture for email operations
   - Natural language email commands
   - Secure OAuth2 authentication
   - Real-time email status feedback
-  - Support for multiple email formats:
+  - Example commands:
     ```
-    send email to example@email.com "Subject" "Message"
-    send an email to example@email.com with subject "Subject" saying "Message"
+    send an email to example@email.com about "Subject" saying "Message"
     ```
+
+- **Google Drive Integration (via MCP)**
+  - List folders and files in your Drive
+  - Search for files and folders using natural language
+  - Example commands:
+    - `list all folders in my Drive`
+    - `list files in my Drive in "FolderName"`
+    - `search my Drive for "report"`
 
 ### Coming Soon
 
-- **Google Drive Integration**
-  - File access and management through natural language
-  - Document search and retrieval
-  - File sharing capabilities
-  - Folder organization
+- **Calendar Integration (via MCP)**
+  - Manage events and reminders using natural language
+- **Real-time Weather App (via MCP)**
+  - Get current weather updates and forecasts
+- **Other Personal MCP Servers**
+  - Integrate additional services as needed for personal productivity
 
 ## Technical Architecture
 
@@ -37,34 +46,33 @@ Jarvis is an AI assistant that runs locally using LLaMA 2, featuring Gmail integ
 
 - React-based chat interface
 - Real-time message updates
-- Gmail command processing
-- Visual feedback for email operations
+- Visual feedback for email and Drive operations
 
 ### Backend
 
 - FastAPI server
 - LLaMA 2 model integration
-- MCP server for Gmail operations
+- MCP servers for Gmail and Google Drive
 - OAuth2 authentication
 
 ### Components
 
 1. **Chat System**
-
    - Natural language processing
    - Command recognition
    - Response generation
-
-2. **Gmail Service**
-
-   - MCP server implementation
-   - Email sending capabilities
+2. **Gmail Service (MCP)**
+   - Email sending via MCP server
    - Status tracking and error handling
-
-3. **Authentication**
+3. **Google Drive Service (MCP)**
+   - File and folder management via MCP server
+   - Search and retrieval
+4. **Authentication**
    - Google OAuth2 integration
    - Secure token management
    - Automatic token refresh
+5. **Extensible MCP Integration**
+   - Easily add new MCP servers for personal use (Calendar, Weather, etc.)
 
 ## Setup
 
@@ -78,35 +86,27 @@ Jarvis is an AI assistant that runs locally using LLaMA 2, featuring Gmail integ
 ### Installation
 
 1. Clone the repository:
-
    ```bash
    git clone https://github.com/yourusername/jarvis.git
    cd jarvis
    ```
-
 2. Set up the backend:
-
    ```bash
    cd backend
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    pip install -r requirements.txt
    ```
-
 3. Configure environment variables:
-
    ```bash
    cp .env.example .env
    # Edit .env with your configuration
    ```
-
 4. Set up the frontend:
-
    ```bash
    cd frontend
    npm install
    ```
-
 5. Start the development servers:
 
    ```bash
@@ -123,32 +123,21 @@ Jarvis is an AI assistant that runs locally using LLaMA 2, featuring Gmail integ
 
 1. Start a chat session by typing in the input box
 2. Use natural language to interact with the assistant
-3. Send emails using commands like:
+3. Send emails and manage Drive using commands like:
    ```
-   send email to example@email.com "Subject" "Message"
+   send an email to someone@email.com about "Subject" saying "Message"
+   list all folders in my Drive
+   search my Drive for "project"
    ```
 
 ## Development Roadmap
 
-### Phase 1: Core LLM Integration ✅
-
 - [x] Local LLaMA 2 setup
-- [x] Basic chat interface
-- [x] Natural language processing
-
-### Phase 2: Gmail Integration ✅
-
-- [x] MCP server implementation
-- [x] Email command processing
-- [x] OAuth2 authentication
-- [x] Email status feedback
-
-### Phase 3: Google Drive Integration (In Progress)
-
-- [ ] File access implementation
-- [ ] Document search functionality
-- [ ] File sharing capabilities
-- [ ] Folder management
+- [x] Gmail MCP integration
+- [x] Google Drive MCP integration
+- [ ] Calendar MCP integration
+- [ ] Real-time Weather MCP integration
+- [ ] Additional personal MCP servers as needed
 
 ## Contributing
 
@@ -167,3 +156,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - LLaMA 2 team for the open-source model
 - FastAPI for the backend framework
 - React team for the frontend framework
+- Google for Gmail and Drive APIs
