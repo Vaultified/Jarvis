@@ -1,6 +1,6 @@
-# Jarvis - Local LLM Assistant with MCP Integration
+# Jarvis - Local LLM Assistant with MCP (Model Context Protocol) Integration
 
-Jarvis is an AI assistant that runs locally using LLaMA 2, featuring seamless integration with Gmail and Google Drive through the MCP (Model-Controller-Provider) server architecture. The system allows natural language interaction for sending emails, managing files, and will soon support additional personal productivity tools such as Calendar and real-time weather.
+Jarvis is an AI assistant that runs locally using LLaMA 2, featuring seamless integration with Gmail and Google Drive through the MCP (Model Context Protocol) server architecture. The system allows natural language interaction for sending emails, managing files, and will soon support additional personal productivity tools such as Calendar and real-time weather.
 
 ## Features
 
@@ -14,7 +14,7 @@ Jarvis is an AI assistant that runs locally using LLaMA 2, featuring seamless in
 
 - **Gmail Integration (via MCP)**
 
-  - MCP server architecture for email operations
+  - MCP (Model Context Protocol) server architecture for email operations
   - Natural language email commands
   - Secure OAuth2 authentication
   - Real-time email status feedback
@@ -52,7 +52,7 @@ Jarvis is an AI assistant that runs locally using LLaMA 2, featuring seamless in
 
 - FastAPI server
 - LLaMA 2 model integration
-- MCP servers for Gmail and Google Drive
+- MCP (Model Context Protocol) servers for Gmail and Google Drive
 - OAuth2 authentication
 
 ### Components
@@ -62,17 +62,17 @@ Jarvis is an AI assistant that runs locally using LLaMA 2, featuring seamless in
    - Command recognition
    - Response generation
 2. **Gmail Service (MCP)**
-   - Email sending via MCP server
+   - Email sending via MCP (Model Context Protocol) server
    - Status tracking and error handling
 3. **Google Drive Service (MCP)**
-   - File and folder management via MCP server
+   - File and folder management via MCP (Model Context Protocol) server
    - Search and retrieval
 4. **Authentication**
    - Google OAuth2 integration
    - Secure token management
    - Automatic token refresh
 5. **Extensible MCP Integration**
-   - Easily add new MCP servers for personal use (Calendar, Weather, etc.)
+   - Easily add new MCP (Model Context Protocol) servers for personal use (Calendar, Weather, etc.)
 
 ## Setup
 
@@ -133,11 +133,11 @@ Jarvis is an AI assistant that runs locally using LLaMA 2, featuring seamless in
 ## Development Roadmap
 
 - [x] Local LLaMA 2 setup
-- [x] Gmail MCP integration
-- [x] Google Drive MCP integration
-- [ ] Calendar MCP integration
-- [ ] Real-time Weather MCP integration
-- [ ] Additional personal MCP servers as needed
+- [x] Gmail MCP (Model Context Protocol) integration
+- [x] Google Drive MCP (Model Context Protocol) integration
+- [ ] Calendar MCP (Model Context Protocol) integration
+- [ ] Real-time Weather MCP (Model Context Protocol) integration
+- [ ] Additional personal MCP (Model Context Protocol) servers as needed
 
 ## Contributing
 
