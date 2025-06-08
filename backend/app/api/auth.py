@@ -1,48 +1,50 @@
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
-from typing import Dict, Optional, List
 from ..services.auth_service import AuthService
+import logging
+import os
 
 router = APIRouter()
-auth_service = AuthService()
+logger = logging.getLogger(__name__)
 
-class AuthResponse(BaseModel):
-    auth_url: str
+# Get the path to the credentials file
+credentials_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "credentials.json")
+token_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "token.json")
 
-class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_uri: str
-    client_id: str
-    client_secret: str
-    scopes: list
+# Initialize the auth service
+auth_service = AuthService(credentials_path=credentials_path, token_path=token_path)
 
-@router.get("/auth/start", response_model=AuthResponse)
+@router.get("/auth/start")
 async def start_auth():
-    """Start the Google OAuth2 authentication flow."""
+    """Start the OAuth2 flow."""
     try:
-        auth_url = auth_service.get_auth_url()
-        return AuthResponse(auth_url=auth_url)
+        auth_url = auth_service.get_authorization_url()
+        return {"auth_url": auth_url}
     except Exception as e:
+        logger.error(f"Error starting auth: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/auth/callback")
-async def auth_callback(code: str):
-    """Handle the OAuth2 callback from Google."""
+async def auth_callback(code: str, state: str = None):
+    """Handle the OAuth2 callback."""
     try:
-        # Use the updated method to exchange code for token
-        auth_service.exchange_code_for_token(code)
-        # Optionally, return a success message or redirect the user
-        return {"message": "Authentication successful! You can close this window.", "success": True}
+        success = auth_service.handle_callback(code)
+        if success:
+            return {"status": "success", "message": "Authentication successful"}
+        else:
+            raise HTTPException(status_code=400, detail="Authentication failed")
     except Exception as e:
+        logger.error(f"Error in auth callback: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/auth/status")
 async def auth_status():
-    """Check the current authentication status."""
-    return {
-        "authenticated": auth_service.is_authenticated()
-    }
+    """Check the authentication status."""
+    try:
+        is_authenticated = auth_service.is_authenticated()
+        return {"authenticated": is_authenticated}
+    except Exception as e:
+        logger.error(f"Error checking auth status: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/auth/test-services")
 async def test_google_services():

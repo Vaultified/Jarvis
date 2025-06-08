@@ -13,7 +13,12 @@ class ChatRequest(BaseModel):
     )
 
 class ChatResponse(BaseModel):
-    response: str = Field(
+    type: str = Field(
+        default="chat",
+        description="The type of response",
+        example="chat"
+    )
+    message: str = Field(
         ...,
         description="The AI's response to the prompt",
         example="The capital of France is Paris."
@@ -35,7 +40,8 @@ class ChatResponse(BaseModel):
             "content": {
                 "application/json": {
                     "example": {
-                        "response": "The capital of France is Paris."
+                        "type": "chat",
+                        "message": "The capital of France is Paris."
                     }
                 }
             }
@@ -67,6 +73,6 @@ async def chat(request: ChatRequest):
     """
     try:
         response = llm_service.generate_response(request.prompt)
-        return ChatResponse(response=response)
+        return ChatResponse(type="chat", message=response)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 

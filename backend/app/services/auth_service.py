@@ -6,192 +6,200 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request as GoogleRequest
 from googleapiclient.discovery import build
+import logging
+from fastapi import HTTPException
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class AuthService:
-    """Service to handle Google OAuth2 authentication."""
+    """Service for handling Google OAuth2 authentication."""
     
+    # Define the scopes needed for Gmail and Drive access
     SCOPES = [
-        'https://www.googleapis.com/auth/gmail.send',
-        'https://www.googleapis.com/auth/gmail.readonly',
-        'https://www.googleapis.com/auth/gmail.modify',
         'https://www.googleapis.com/auth/gmail.compose',
-        'https://www.googleapis.com/auth/drive.file'
+        'https://www.googleapis.com/auth/gmail.modify',
+        'https://www.googleapis.com/auth/drive.file',
+        'https://www.googleapis.com/auth/gmail.readonly',
+        'https://www.googleapis.com/auth/drive',
+        'https://www.googleapis.com/auth/gmail.send'
     ]
     
-    def __init__(self):
-        # Get the backend directory path
-        backend_dir = Path(__file__).parent.parent.parent
-        self.credentials_path = backend_dir / 'credentials.json'
-        self.token_path = backend_dir / 'token.json'
-        self.credentials: Optional[Credentials] = None
-        self._load_credentials()
-    
-    def _load_credentials(self) -> None:
-        """Load credentials from token file if it exists."""
+    def __init__(self, credentials_path: str, token_path: str):
+        """Initialize the auth service with paths to credentials and token files."""
+        self.credentials_path = credentials_path
+        self.token_path = token_path
+
+    def get_credentials(self):
+        """Get Google credentials from token file."""
         try:
-            if self.token_path.exists():
-                with open(self.token_path, 'r') as token:
-                    token_data = json.load(token)
-                    # Create credentials from the token data
-                    self.credentials = Credentials(
-                        token=token_data.get('token'),
-                        refresh_token=token_data.get('refresh_token'),
-                        token_uri=token_data.get('token_uri'),
-                        client_id=token_data.get('client_id'),
-                        client_secret=token_data.get('client_secret'),
-                        scopes=token_data.get('scopes', self.SCOPES)
-                    )
-                    
-                    # Check if credentials need refresh
-                    if self.credentials.expired and self.credentials.refresh_token:
-                        try:
-                            self.credentials.refresh(GoogleRequest())
-                            self._save_credentials()
-                        except Exception as e:
-                            print(f"Token refresh failed: {str(e)}")
-                            self._start_new_oauth_flow()
+            if not os.path.exists(self.token_path):
+                logger.error(f"Token file not found at {self.token_path}")
+                return None
+
+            with open(self.token_path, 'r') as token:
+                creds_dict = json.load(token)
+                logger.info(f"Loaded credentials with scopes: {creds_dict.get('scopes', [])}")
+                
+            # Create credentials from the token data
+            credentials = Credentials.from_authorized_user_info(creds_dict)
+            
+            # Check if credentials exist and have a token
+            if not credentials:
+                logger.error("Failed to create credentials from token data")
+                return None
+                
+            if not credentials.token:
+                logger.error("No access token found in credentials")
+                return None
+                
+            # Don't check credentials.valid as it might be false even with a valid token
+            # Just ensure we have the token and scopes
+            if not credentials.scopes:
+                logger.error("No scopes found in credentials")
+                return None
+                
+            logger.info("Successfully loaded valid credentials")
+            return credentials
+            
         except Exception as e:
-            print(f"Error loading credentials: {str(e)}")
-            self._start_new_oauth_flow()
-    
-    def _start_new_oauth_flow(self) -> None:
-        """Start a new OAuth flow to get fresh credentials."""
+            logger.error(f"Error loading credentials: {str(e)}")
+            return None
+
+    def get_authorization_url(self) -> str:
+        """Get the authorization URL for Google OAuth2."""
         try:
-            # Remove old token file if it exists
-            if self.token_path.exists():
-                self.token_path.unlink()
-            
-            # Set the redirect URI to match Google Console exactly
-            redirect_uri = 'http://localhost:8000/api/auth/callback'
-            
+            if not os.path.exists(self.credentials_path):
+                raise FileNotFoundError(f"Credentials file not found at {self.credentials_path}")
+
+            # Create flow instance to manage the OAuth 2.0 Authorization Grant Flow
             flow = InstalledAppFlow.from_client_secrets_file(
-                str(self.credentials_path),
-                self.SCOPES,
-                redirect_uri=redirect_uri
+                self.credentials_path,
+                scopes=self.SCOPES
             )
-            
-            # Get the authorization URL - the callback will be handled by the backend's API endpoint
+
+            # Set the redirect URI to match the Google Console configuration
+            flow.redirect_uri = "http://localhost:8000/api/auth/callback"
+
+            # Generate URL for request to Google's OAuth 2.0 server
             auth_url, _ = flow.authorization_url(
-                access_type='offline',
-                include_granted_scopes='true'
+                access_type='offline',  # Request offline access to get refresh token
+                include_granted_scopes='true',
+                prompt='consent'  # Force consent screen to ensure we get refresh token
             )
             
-            print(f"\n==========================================================")
-            print(f"Please visit this URL in your browser to authorize the application:")
-            print(auth_url)
-            print(f"\nAfter authorization, your browser will be redirected to {redirect_uri}")
-            print(f"The backend must be running on port 8000 to handle this redirect and complete the authentication.")
-            print(f"==========================================================")
-            
-            # The code will be handled by the /api/auth/callback endpoint
-            
+            return auth_url
         except Exception as e:
-            print(f"\n=== OAuth Flow Error ===")
-            print(f"Error type: {type(e).__name__}")
-            print(f"Error message: {str(e)}")
-            self.credentials = None
+            logger.error(f"Error getting authorization URL: {str(e)}")
+            raise
 
-    def get_auth_url(self) -> str:
-        """Get the authorization URL for OAuth2 flow."""
-        if not self.credentials_path.exists():
-            raise FileNotFoundError(
-                f"Credentials file not found at {self.credentials_path}. "
-                "Please download your OAuth2 credentials from Google Cloud Console "
-                "and save them as 'credentials.json' in the backend directory."
-            )
-        
-        # Set the redirect URI to match Google Console exactly
-        redirect_uri = 'http://localhost:8000/api/auth/callback'
-        
-        flow = InstalledAppFlow.from_client_secrets_file(
-            str(self.credentials_path),
-            self.SCOPES,
-            redirect_uri=redirect_uri
-        )
-        
-        # Get the authorization URL
-        auth_url, _ = flow.authorization_url(
-            access_type='offline',
-            include_granted_scopes='true'
-        )
-        
-        return auth_url
+    def handle_callback(self, code: str) -> bool:
+        """Handle the OAuth2 callback from Google."""
+        try:
+            if not os.path.exists(self.credentials_path):
+                raise FileNotFoundError(f"Credentials file not found at {self.credentials_path}")
 
-    def handle_callback(self, code: str) -> Dict:
-        """Handle the OAuth2 callback and exchange code for tokens."""
-        if not self.credentials_path.exists():
-            raise FileNotFoundError(
-                f"Credentials file not found at {self.credentials_path}. "
-                "Please download your OAuth2 credentials from Google Cloud Console "
-                "and save them as 'credentials.json' in the backend directory."
+            # Create flow instance to manage the OAuth 2.0 Authorization Grant Flow
+            flow = InstalledAppFlow.from_client_secrets_file(
+                self.credentials_path,
+                scopes=self.SCOPES
             )
-        
-        # Set the redirect URI to match Google Console exactly
-        redirect_uri = 'http://localhost:8000/api/auth/callback'
-        
-        flow = InstalledAppFlow.from_client_secrets_file(
-            str(self.credentials_path),
-            self.SCOPES,
-            redirect_uri=redirect_uri
-        )
-        
-        # Exchange the code for tokens
-        flow.fetch_token(code=code)
-        self.credentials = flow.credentials
-        
-        # Save the credentials
-        self._save_credentials()
-        
-        return {
-            'token': self.credentials.token,
-            'refresh_token': self.credentials.refresh_token,
-            'token_uri': self.credentials.token_uri,
-            'client_id': self.credentials.client_id,
-            'client_secret': self.credentials.client_secret,
-            'scopes': self.credentials.scopes
-        }
-    
-    def _save_credentials(self) -> None:
+
+            # Set the redirect URI to match the Google Console configuration
+            flow.redirect_uri = "http://localhost:8000/api/auth/callback"
+
+            # Exchange authorization code for credentials
+            flow.fetch_token(code=code)
+
+            # Get the credentials from the flow
+            credentials = flow.credentials
+
+            # Save the credentials
+            self._save_credentials(credentials)
+
+            return True
+        except Exception as e:
+            logger.error(f"Error in auth callback: {str(e)}")
+            raise
+
+    def _save_credentials(self, credentials):
         """Save credentials to token file."""
-        if self.credentials:
-            token_data = {
-                'token': self.credentials.token,
-                'refresh_token': self.credentials.refresh_token,
-                'token_uri': self.credentials.token_uri,
-                'client_id': self.credentials.client_id,
-                'client_secret': self.credentials.client_secret,
-                'scopes': self.credentials.scopes
+        try:
+            # Create a dictionary with all required fields
+            creds_dict = {
+                'token': credentials.token,
+                'refresh_token': credentials.refresh_token,
+                'token_uri': credentials.token_uri,
+                'client_id': credentials.client_id,
+                'client_secret': credentials.client_secret,
+                'scopes': credentials.scopes,
+                'universe_domain': 'googleapis.com'
             }
+
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(self.token_path), exist_ok=True)
+
+            # Save to token file
             with open(self.token_path, 'w') as token:
-                json.dump(token_data, token)
-    
-    def get_credentials(self) -> Optional[Credentials]:
-        """Get the current credentials, refreshing if necessary."""
-        if not self.credentials:
-            self._start_new_oauth_flow()
-            return self.credentials
-        
-        if self.credentials.expired and self.credentials.refresh_token:
-            try:
-                self.credentials.refresh(GoogleRequest())
-                self._save_credentials()
-            except Exception as e:
-                print(f"Token refresh failed: {str(e)}")
-                self._start_new_oauth_flow()
-        
-        return self.credentials
-    
+                json.dump(creds_dict, token)
+            logger.info(f"Credentials saved to {self.token_path}")
+        except Exception as e:
+            logger.error(f"Error saving credentials: {str(e)}")
+            raise
+
     def is_authenticated(self) -> bool:
-        """Check if the user is authenticated."""
-        return self.credentials is not None and not self.credentials.expired
-    
+        """Check if we have valid credentials."""
+        return os.path.exists(self.token_path)
+
     def get_gmail_service(self):
         """Get an authenticated Gmail service."""
         if not self.is_authenticated():
             raise ValueError("Not authenticated")
         return build('gmail', 'v1', credentials=self.credentials)
 
+    def get_drive_service(self):
+        """Get a Google Drive service instance."""
+        try:
+            if not self.credentials:
+                raise ValueError("Not authenticated")
+            
+            # Try to refresh credentials if they're expired
+            if self.credentials.expired and self.credentials.refresh_token:
+                try:
+                    self.credentials.refresh(GoogleRequest())
+                    self._save_credentials()
+                    logger.info("Credentials refreshed successfully")
+                except Exception as e:
+                    logger.error(f"Failed to refresh credentials: {str(e)}")
+                    raise ValueError("Authentication expired. Please re-authenticate.")
+            
+            # Disable cache to avoid the warning
+            import googleapiclient.discovery_cache
+            googleapiclient.discovery_cache.DISCOVERY_CACHE = {}
+            
+            return build('drive', 'v3', credentials=self.credentials)
+        except Exception as e:
+            logger.error(f"Error getting Drive service: {str(e)}")
+            raise
+
 def get_google_credentials():
-    """Get Google OAuth2 credentials, refreshing if necessary."""
-    auth_service = AuthService()
-    return auth_service.get_credentials() 
+    """Get Google credentials for API access."""
+    try:
+        # Get the path to the credentials file
+        credentials_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "credentials.json")
+        token_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "token.json")
+        
+        # Initialize auth service
+        auth_service = AuthService(credentials_path=credentials_path, token_path=token_path)
+        
+        # Get credentials
+        credentials = auth_service.get_credentials()
+        if not credentials:
+            logger.error("No valid credentials found")
+            return None
+            
+        return credentials
+    except Exception as e:
+        logger.error(f"Error getting Google credentials: {str(e)}")
+        return None 

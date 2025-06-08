@@ -152,6 +152,37 @@ def read_file_content(file_id: str) -> Dict:
         print(f'An error occurred: {e}')
         return {'error': f'Failed to read file content: {e}'}
 
+@mcp.tool()
+def list_root_folders() -> List[Dict]:
+    """List all folders in the root directory of Google Drive.
+
+    Returns:
+        A list of dictionaries, each representing a folder with id and name.
+    """
+    try:
+        service = get_drive_service()
+        # List all folders in root
+        query = "mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        results = service.files().list(
+            q=query,
+            pageSize=50,
+            fields="files(id, name)",
+            spaces='drive',
+            orderBy="name"
+        ).execute()
+        
+        folders = results.get('files', [])
+        return [{"id": folder['id'], "name": folder['name']} for folder in folders]
+        
+    except HttpError as error:
+        print(f'An API error occurred: {error}')
+        if error.resp.status == 401:
+            print("Authentication failed. Please re-authenticate.")
+        return []
+    except Exception as e:
+        print(f'An error occurred: {e}')
+        return []
+
 if __name__ == "__main__":
     # This block allows you to run the MCP server directly for testing
     # You might need to manually trigger authentication before running this

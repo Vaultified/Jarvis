@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 import requests
 import logging
 from llama_cpp import Llama
@@ -47,8 +47,10 @@ For regular conversation:
 For email commands, respond with exactly:
 send an email to [email] about [subject] saying [message]
 
-For Drive search, respond with exactly:
-search my Drive for [query]
+For Drive commands:
+- To list all folders: list all folders in my Drive
+- To search in a folder: list files in my Drive in "[folder_name]"
+- To search for files: search my Drive for "[query]"
 
 Example of natural conversation:
 User: Hi
@@ -71,30 +73,29 @@ Assistant: I don't have access to real-time weather information, but I'd be happ
             }
         return None
 
-    def _extract_drive_info(self, text: str) -> Optional[Dict[str, str]]:
-        # Updated pattern to better match Drive search commands
-        search_patterns = [
-            r"search\s+(?:for\s+)?(?:files\s+)?(?:in\s+)?(?:my\s+)?(?:Drive|Google\s+Drive)\s+(?:for|containing|with)\s+['\"]([^'\"]+)['\"]\s+(?:in|from|under)\s+['\"]([^'\"]+)['\"]",
-            r"search\s+(?:for\s+)?(?:files\s+)?(?:in\s+)?(?:my\s+)?(?:Drive|Google\s+Drive)\s+(?:in|from|under)\s+['\"]([^'\"]+)['\"]",
-            r"list\s+(?:files\s+)?(?:in\s+)?(?:my\s+)?(?:Drive|Google\s+Drive)\s+(?:in|from|under)\s+['\"]([^'\"]+)['\"]",
-            r"show\s+(?:files\s+)?(?:in\s+)?(?:my\s+)?(?:Drive|Google\s+Drive)\s+(?:in|from|under)\s+['\"]([^'\"]+)['\"]"
-        ]
+    def _extract_drive_info(self, text: str) -> Tuple[str, str, str]:
+        """Extract Drive command, folder name, and search query from text."""
+        # Pattern for listing all folders
+        list_folders_pattern = r'list\s+all\s+folders\s+(?:in\s+)?(?:my\s+)?(?:Drive|Google\s+Drive)'
         
-        for pattern in search_patterns:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                # If the pattern has two groups, it's a search with query and folder
-                if len(match.groups()) == 2:
-                    return {
-                        "query": match.group(1),
-                        "folder": match.group(2)
-                    }
-                # If the pattern has one group, it's just a folder search
-                else:
-                    return {
-                        "folder": match.group(1)
-                    }
-        return None
+        # Pattern for searching files in a specific folder
+        search_pattern = r'search\s+(?:for\s+)?(?:files\s+)?(?:in\s+)?(?:my\s+)?(?:Drive|Google\s+Drive)\s+(?:for|containing|with)\s+[\'"]([^\'"]+)[\'"]\s+(?:in|from|under)\s+[\'"]([^\'"]+)[\'"]'
+        
+        # Pattern for listing files in a specific folder
+        list_files_pattern = r'list\s+(?:files\s+)?(?:in\s+)?(?:my\s+)?(?:Drive|Google\s+Drive)\s+(?:in|from|under)\s+[\'"]([^\'"]+)[\'"]'
+        
+        if re.search(list_folders_pattern, text, re.IGNORECASE):
+            return "list_folders", None, None
+            
+        search_match = re.search(search_pattern, text, re.IGNORECASE)
+        if search_match:
+            return "search", search_match.group(2), search_match.group(1)
+            
+        list_files_match = re.search(list_files_pattern, text, re.IGNORECASE)
+        if list_files_match:
+            return "list_files", list_files_match.group(1), None
+            
+        return None, None, None
 
     def _send_email(self, to: str, subject: str, body: str) -> str:
         try:
@@ -156,24 +157,46 @@ Assistant: I don't have access to real-time weather information, but I'd be happ
             logger.error(f"Unexpected error while sending email: {str(e)}", exc_info=True)
             return f"An unexpected error occurred while trying to send the email: {str(e)}"
 
-    def _search_drive(self, query: str, folder: str = None) -> str:
+    def _search_drive(self, command: str, folder_name: str = None, search_query: str = None) -> str:
+        """Search Google Drive using the MCP Drive service."""
         try:
-            payload = {"query": query} if query else {}
-            if folder:
-                payload["folder"] = folder
-                
-            response = requests.post(
-                "http://localhost:8000/api/drive/search",
-                json=payload
-            )
-            response.raise_for_status()
-            return response.json().get("message", "Drive search completed.")
+            # Import the MCP Drive service
+            from app.services.drive_service import list_root_folders, search_files
+            
+            if command == "list_folders":
+                # Use the MCP tool to list folders
+                folders = list_root_folders()
+                if not folders:
+                    return "No folders found in your Drive."
+                return "Found folders in your Drive:\n" + "\n".join([f"- {folder['name']}" for folder in folders])
+            
+            elif command == "list_files":
+                # Use the MCP tool to search files in folder
+                files = search_files(query="", folder_name=folder_name)
+                if not files:
+                    return f"No files found in folder '{folder_name}'."
+                return f"Files in folder '{folder_name}':\n" + "\n".join([f"- {file['name']}" for file in files])
+            
+            elif command == "search":
+                # Use the MCP tool to search files
+                files = search_files(query=search_query, folder_name=folder_name)
+                if not files:
+                    return f"No files found matching '{search_query}' in folder '{folder_name}'."
+                return f"Found files matching '{search_query}' in folder '{folder_name}':\n" + "\n".join([f"- {file['name']}" for file in files])
+            
+            return "Invalid Drive command."
+            
         except Exception as e:
+            print(f"Error in Drive search: {e}")
             return f"Error searching Drive: {str(e)}"
 
     def generate_response(self, prompt: str) -> str:
+        """Generate a response using the LLaMA model."""
         try:
-            logger.info(f"Generating response for prompt: {prompt}")
+            # Check for Drive commands first
+            command, folder_name, search_query = self._extract_drive_info(prompt)
+            if command:
+                return self._search_drive(command, folder_name, search_query)
             
             # Check for email command
             email_info = self._extract_email_info(prompt)
@@ -183,15 +206,6 @@ Assistant: I don't have access to real-time weather information, but I'd be happ
                     email_info["to"],
                     email_info["subject"],
                     email_info["body"]
-                )
-
-            # Check for drive command
-            drive_info = self._extract_drive_info(prompt)
-            if drive_info:
-                logger.info(f"Detected drive command: {drive_info}")
-                return self._search_drive(
-                    drive_info.get("query"),
-                    drive_info.get("folder")
                 )
 
             # If no command detected, generate natural language response
@@ -223,4 +237,4 @@ Assistant: I don't have access to real-time weather information, but I'd be happ
             
         except Exception as e:
             logger.error(f"Error generating response: {str(e)}", exc_info=True)
-            return f"I encountered an error while processing your request: {str(e)}"
+            return f"An error occurred: {str(e)}"
