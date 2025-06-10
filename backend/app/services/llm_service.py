@@ -156,6 +156,39 @@ Assistant: I don't have access to real-time weather information, but I'd be happ
             print(f"Error in Drive search: {e}")
             return f"Error searching Drive: {str(e)}"
 
+    def _extract_weather_info(self, text: str) -> Optional[Tuple[float, float]]:
+        """Extract latitude and longitude or city name from a weather-related prompt."""
+        # Pattern: 'weather in [lat],[lon]' or 'weather at [lat],[lon]'
+        match = re.search(r'weather (?:in|at|for)?\s*([+-]?\d+\.\d+),\s*([+-]?\d+\.\d+)', text, re.IGNORECASE)
+        if match:
+            try:
+                lat = float(match.group(1))
+                lon = float(match.group(2))
+                return lat, lon
+            except Exception:
+                return None
+        # Pattern: 'weather in [city]' or 'weather at [city]' or 'weather update for [city]' or 'what's the weather in [city]'
+        match_city = re.search(r'(?:weather|weather update|what\'?s the weather|show me the weather|tell me the weather)(?:\s*(?:in|at|for))?\s*([a-zA-Z\s]+)', text, re.IGNORECASE)
+        if match_city:
+            city = match_city.group(1).strip()
+            return city
+        return None
+
+    def _get_weather(self, location) -> str:
+        try:
+            from app.services.weather_service import get_weather_info
+            # location can be (lat, lon) tuple or city name string
+            result = get_weather_info(location)
+            if isinstance(result, str):
+                return result  # error message from weather_service
+            if result.get("success"):
+                return result["message"]
+            else:
+                return f"Weather fetch failed: {result.get('message', 'Unknown error')}"
+        except Exception as e:
+            logger.error(f"Error fetching weather: {str(e)}", exc_info=True)
+            return f"An error occurred while fetching weather: {str(e)}"
+
     def generate_response(self, prompt: str) -> str:
         """Generate a response using the LLaMA model."""
         try:
@@ -173,7 +206,12 @@ Assistant: I don't have access to real-time weather information, but I'd be happ
                     email_info["subject"],
                     email_info["body"]
                 )
-
+            
+            # Check for weather command
+            weather_info = self._extract_weather_info(prompt)
+            if weather_info:
+                return self._get_weather(weather_info)
+            
             # If no command detected, generate natural language response
             formatted_prompt = f"<s>[INST] {self.system_prompt}\n\nUser: {prompt} [/INST]"
             logger.info("Generating natural language response...")
