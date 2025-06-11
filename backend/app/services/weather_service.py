@@ -1,11 +1,13 @@
 import logging
 import requests
 from mcp.server.fastmcp import FastMCP
+from typing import Union, Dict, Any
 
 logger = logging.getLogger(__name__)
 mcp = FastMCP("Weather Service")
 
-WEATHER_CODE_MAP = {
+# Weather code mapping (Open-Meteo)
+WEATHER_CODES = {
     0: "Clear sky",
     1: "Mainly clear",
     2: "Partly cloudy",
@@ -33,77 +35,88 @@ WEATHER_CODE_MAP = {
     86: "Heavy snow showers",
     95: "Thunderstorm",
     96: "Thunderstorm with slight hail",
-    99: "Thunderstorm with heavy hail",
+    99: "Thunderstorm with heavy hail"
 }
-RAIN_CODES = [51, 53, 55, 61, 63, 65, 80, 81, 82]
 
-def geocode_city(city: str):
-    geo_url = "https://nominatim.openstreetmap.org/search"
-    params = {"q": city, "format": "json", "limit": 1}
+GEOCODE_URL = "https://nominatim.openstreetmap.org/search"
+WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
+
+
+def geocode_city(city: str) -> Union[Dict[str, float], None]:
     try:
-        resp = requests.get(geo_url, params=params, timeout=5, headers={"User-Agent": "jarvis-weather/1.0"})
-        geo_data = resp.json()
-        if geo_data:
-            lat = float(geo_data[0]["lat"])
-            lon = float(geo_data[0]["lon"])
-            return lat, lon
-        else:
-            logger.error(f"Geocoding found no results for city '{city}'")
-            return None
+        params = {
+            "q": city,
+            "format": "json",
+            "limit": 1
+        }
+        resp = requests.get(GEOCODE_URL, params=params, headers={"User-Agent": "MCP-Weather-Agent"}, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        if data and len(data) > 0:
+            return {
+                "lat": float(data[0]["lat"]),
+                "lon": float(data[0]["lon"])
+            }
+        return None
     except Exception as e:
-        logger.error(f"Geocoding failed for city '{city}': {e}")
+        logger.error(f"Geocoding error: {e}")
         return None
 
-@mcp.tool()
-def get_weather_info(location) -> dict:
-    """
-    Get weather info for a (lat, lon) tuple or city name string.
-    Returns a dict with a formatted message and details.
-    """
-    if isinstance(location, tuple) and len(location) == 2:
-        lat, lon = location
-    elif isinstance(location, str):
-        geo = geocode_city(location)
-        if not geo:
-            return {"success": False, "message": f"Could not find location '{location}'."}
-        lat, lon = geo
-    else:
-        return {"success": False, "message": "Invalid location format."}
 
+def get_weather(lat: float, lon: float) -> Union[Dict[str, Any], None]:
     try:
-        url = "https://api.open-meteo.com/v1/forecast"
         params = {
             "latitude": lat,
             "longitude": lon,
             "current_weather": True
         }
-        response = requests.get(url, params=params, timeout=5)
-        response.raise_for_status()
-        data = response.json()
-        current = data.get("current_weather", {})
-        if not current:
-            return {"success": False, "message": "No weather data found", "details": data}
-        temp = current.get("temperature")
-        wind = current.get("windspeed")
-        weather_code = current.get("weathercode")
-        is_day = current.get("is_day")
-        weather_desc = WEATHER_CODE_MAP.get(weather_code, f"Unknown (code {weather_code})")
-        rain_status = "Yes" if weather_code in RAIN_CODES else "No"
-        day_status = "Day" if is_day == 1 else "Night"
-        weather_str = (
-            f"Current temperature: {temp}°C, Wind speed: {wind} km/h. "
-            f"Weather: {weather_desc}. "
-            f"Is it raining? {rain_status}. "
-            f"Time of day: {day_status}."
-        )
-        return {
-            "success": True,
-            "message": weather_str,
-            "details": current
-        }
+        resp = requests.get(WEATHER_URL, params=params, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        if "current_weather" in data:
+            return data["current_weather"]
+        return None
     except Exception as e:
-        logger.error(f"Error fetching weather: {str(e)}")
-        return {"success": False, "message": f"Failed to fetch weather: {str(e)}"}
+        logger.error(f"Weather API error: {e}")
+        return None
+
+
+def format_weather_response(weather: Dict[str, Any], location: str = "") -> str:
+    code = weather.get("weathercode")
+    desc = WEATHER_CODES.get(code, "Unknown")
+    temp = weather.get("temperature")
+    wind = weather.get("windspeed")
+    loc_str = f" in {location}" if location else ""
+    return f"Current weather{loc_str}: {desc}, {temp}°C, wind {wind} km/h."
+
+
+def get_weather_info(location: Union[str, tuple]) -> Dict[str, Any]:
+    """
+    location: city name (str) or (lat, lon) tuple
+    Returns: dict with 'success' and 'message'
+    """
+    try:
+        if isinstance(location, tuple) and len(location) == 2:
+            lat, lon = location
+            weather = get_weather(lat, lon)
+            if weather:
+                return {"success": True, "message": format_weather_response(weather, f"{lat},{lon}")}
+            else:
+                return {"success": False, "message": "Could not fetch weather for the given coordinates."}
+        elif isinstance(location, str):
+            geo = geocode_city(location)
+            if not geo:
+                return {"success": False, "message": f"Could not find location '{location}'."}
+            weather = get_weather(geo["lat"], geo["lon"])
+            if weather:
+                return {"success": True, "message": format_weather_response(weather, location.title())}
+            else:
+                return {"success": False, "message": f"Could not fetch weather for '{location}'."}
+        else:
+            return {"success": False, "message": "Invalid location format."}
+    except Exception as e:
+        logger.error(f"Weather MCP error: {e}")
+        return {"success": False, "message": f"Weather service error: {str(e)}"}
 
 if __name__ == "__main__":
     mcp.run()
