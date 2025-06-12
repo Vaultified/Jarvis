@@ -11,3 +11,7 @@ python-multipart
 numpy
 # Use pre-built wheel for M1 Mac
 llama-cpp-python --extra-index-url https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cpu
+mcp
+PyPDF2==3.0.1
+requests==2.31.0
+llama-cpp-python==0.2.27
