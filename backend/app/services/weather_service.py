@@ -1,6 +1,7 @@
 import logging
 import requests
 from mcp.server.fastmcp import FastMCP
+from mcp.types import TextContent, CallToolResult
 from typing import Union, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -90,33 +91,62 @@ def format_weather_response(weather: Dict[str, Any], location: str = "") -> str:
     return f"Current weather{loc_str}: {desc}, {temp}°C, wind {wind} km/h."
 
 
-def get_weather_info(location: Union[str, tuple]) -> Dict[str, Any]:
+@mcp.tool()
+def get_weather_info(location: Union[str, tuple]) -> CallToolResult:
     """
-    location: city name (str) or (lat, lon) tuple
-    Returns: dict with 'success' and 'message'
+    Get weather information for a location.
+    
+    Args:
+        location: Either a city name (str) or a tuple of (latitude, longitude)
+        
+    Returns:
+        CallToolResult containing the weather information
     """
     try:
         if isinstance(location, tuple) and len(location) == 2:
             lat, lon = location
             weather = get_weather(lat, lon)
             if weather:
-                return {"success": True, "message": format_weather_response(weather, f"{lat},{lon}")}
+                message = format_weather_response(weather, f"{lat},{lon}")
+                return CallToolResult(
+                    content=[TextContent(type="text", text=message, uri=None, mimeType=None)],
+                    isError=False
+                )
             else:
-                return {"success": False, "message": "Could not fetch weather for the given coordinates."}
+                return CallToolResult(
+                    content=[TextContent(type="text", text="Could not fetch weather for the given coordinates.", uri=None, mimeType=None)],
+                    isError=True
+                )
         elif isinstance(location, str):
             geo = geocode_city(location)
             if not geo:
-                return {"success": False, "message": f"Could not find location '{location}'."}
+                return CallToolResult(
+                    content=[TextContent(type="text", text=f"Could not find location '{location}'.", uri=None, mimeType=None)],
+                    isError=True
+                )
             weather = get_weather(geo["lat"], geo["lon"])
             if weather:
-                return {"success": True, "message": format_weather_response(weather, location.title())}
+                message = format_weather_response(weather, location.title())
+                return CallToolResult(
+                    content=[TextContent(type="text", text=message, uri=None, mimeType=None)],
+                    isError=False
+                )
             else:
-                return {"success": False, "message": f"Could not fetch weather for '{location}'."}
+                return CallToolResult(
+                    content=[TextContent(type="text", text=f"Could not fetch weather for '{location}'.", uri=None, mimeType=None)],
+                    isError=True
+                )
         else:
-            return {"success": False, "message": "Invalid location format."}
+            return CallToolResult(
+                content=[TextContent(type="text", text="Invalid location format.", uri=None, mimeType=None)],
+                isError=True
+            )
     except Exception as e:
         logger.error(f"Weather MCP error: {e}")
-        return {"success": False, "message": f"Weather service error: {str(e)}"}
+        return CallToolResult(
+            content=[TextContent(type="text", text=f"Weather service error: {str(e)}", uri=None, mimeType=None)],
+            isError=True
+        )
 
 if __name__ == "__main__":
     mcp.run()

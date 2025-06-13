@@ -2,7 +2,6 @@ from pathlib import Path
 import os
 import re
 from typing import Dict, Any, Optional, Tuple
-import requests
 import logging
 import multiprocessing
 from llama_cpp import Llama
@@ -157,12 +156,10 @@ Assistant: I don't have access to real-time weather information, but I'd be happ
         try:
             from app.services.weather_service import get_weather_info
             result = get_weather_info(location)
-            if isinstance(result, str):
-                return result
-            if result.get("success"):
-                return result["message"]
+            if not result.isError:
+                return result.content[0].text
             else:
-                return f"Weather fetch failed: {result.get('message', 'Unknown error')}"
+                return result.content[0].text
         except Exception as e:
             logger.error(f"Error fetching weather: {str(e)}", exc_info=True)
             return f"An error occurred while fetching weather: {str(e)}"
@@ -183,7 +180,7 @@ Assistant: I don't have access to real-time weather information, but I'd be happ
             weather_info = self._extract_weather_info(prompt)
             if weather_info:
                 return self._get_weather(weather_info)
-            formatted_prompt = f"<s>[INST] {self.system_prompt}\n\nUser: {prompt} [/INST]"
+            formatted_prompt = f"[INST] {self.system_prompt}\n\nUser: {prompt} [/INST]"
             logger.info("Generating natural language response...")
             output = self.model(
                 formatted_prompt,
