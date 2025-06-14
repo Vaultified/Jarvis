@@ -1,17 +1,12 @@
-fastapi==0.115.12
-uvicorn==0.34.2
-python-dotenv==1.1.0
-pydantic==2.11.5
-pydantic-settings==2.2.1
-ctransformers==0.2.27
-google-auth==2.27.0
-google-auth-oauthlib==1.2.0
-google-api-python-client==2.118.0
-python-multipart
-numpy
-# Use pre-built wheel for M1 Mac
-llama-cpp-python --extra-index-url https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cpu
-mcp
+fastapi==0.104.1
+uvicorn==0.24.0
+python-dotenv==1.0.0
+google-auth==2.23.4
+google-auth-oauthlib==1.1.0
+google-auth-httplib2==0.1.1
+google-api-python-client==2.108.0
 PyPDF2==3.0.1
 requests==2.31.0
+python-multipart==0.0.6
+pydantic==2.5.2
 llama-cpp-python==0.2.27

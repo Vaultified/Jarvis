@@ -1,28 +1,21 @@
-from pathlib import Path
-import os
 import re
-from typing import Dict, Any, Optional, Tuple
 import logging
+import os
+from pathlib import Path
 import multiprocessing
 from llama_cpp import Llama
+from .prompt_handler import PromptHandler
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class LLMService:
     # Pre-compile regex patterns for efficiency
-    EMAIL_PATTERN = re.compile(
-        r"send\s+(?:an\s+)?email\s+to\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\s+(?:about|with\s+subject|subject)\s+['\"]([^'\"]+)['\"]\s+(?:saying|message|body)\s+['\"]([^'\"]+)['\"]",
-        re.IGNORECASE
-    )
-    LIST_FOLDERS_PATTERN = re.compile(r'list\s+all\s+folders\s+(?:in\s+)?(?:my\s+)?(?:Drive|Google\s+Drive)', re.IGNORECASE)
-    SEARCH_PATTERN = re.compile(r'search\s+(?:for\s+)?(?:files\s+)?(?:in\s+)?(?:my\s+)?(?:Drive|Google\s+Drive)\s+(?:for|containing|with)\s+[\'"]([^\'"]+)[\'"]\s+(?:in|from|under)\s+[\'"]([^\'"]+)[\'"]', re.IGNORECASE)
-    LIST_FILES_PATTERN = re.compile(r'list\s+(?:files\s+)?(?:in\s+)?(?:my\s+)?(?:Drive|Google\s+Drive)\s+(?:in|from|under)\s+[\'"]([^\'"]+)[\'"]', re.IGNORECASE)
-    WEATHER_COORD_PATTERN = re.compile(r'weather (?:in|at|for)?\s*([+-]?\d+\.\d+),\s*([+-]?\d+\.\d+)', re.IGNORECASE)
-    WEATHER_CITY_PATTERN = re.compile(r'(?:weather|weather update|what\'?s the weather|show me the weather|tell me the weather)(?:\s*(?:in|at|for))?\s*([a-zA-Z\s]+)', re.IGNORECASE)
-
+    EMAIL_PATTERN = re.compile(r"send an email to ([^\s]+) about ([^:]+): (.+)")
+    
     def __init__(self):
+        # Initialize the prompt handler
+        self.prompt_handler = PromptHandler()
+        
         # Path to the GGUF model
         self.model_path = os.getenv("MODEL_PATH", "models/llama-2-7b-chat.gguf")
         if not Path(self.model_path).exists():
@@ -30,9 +23,11 @@ class LLMService:
                 f"Model not found at {self.model_path}. "
                 "Please make sure the model file exists in the models directory."
             )
+            
         # Use all available CPU cores for n_threads
         n_threads = multiprocessing.cpu_count()
         logger.info(f"Detected {n_threads} CPU cores for Llama model.")
+        
         # Load model using llama.cpp
         logger.info(f"Loading model from {self.model_path}...")
         try:
@@ -45,6 +40,7 @@ class LLMService:
         except Exception as e:
             logger.error(f"Failed to load model: {str(e)}")
             raise
+        
         # System prompt for command instructions
         self.system_prompt = """You are a helpful AI assistant. Your responses should be natural and conversational, just like ChatGPT.
 
@@ -62,6 +58,8 @@ For Drive commands:
 - To list all folders: list all folders in my Drive
 - To search in a folder: list files in my Drive in "[folder_name]"
 - To search for files: search my Drive for "[query]"
+- To read a PDF: read the PDF [pdf_name]
+- To query PDF content: what's in the PDF [pdf_name] about [topic]
 
 Example of natural conversation:
 User: Hi
@@ -73,113 +71,29 @@ Assistant: I'm doing well, thank you for asking! How can I assist you today?
 User: What's the weather like?
 Assistant: I don't have access to real-time weather information, but I'd be happy to help you with other tasks!"""
 
-    def _extract_email_info(self, text: str) -> Optional[Dict[str, str]]:
-        match = self.EMAIL_PATTERN.search(text)
-        if match:
-            return {
-                "to": match.group(1),
-                "subject": match.group(2),
-                "body": match.group(3)
-            }
-        return None
-
-    def _extract_drive_info(self, text: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-        if self.LIST_FOLDERS_PATTERN.search(text):
-            return "list_folders", None, None
-        search_match = self.SEARCH_PATTERN.search(text)
-        if search_match:
-            return "search", search_match.group(2), search_match.group(1)
-        list_files_match = self.LIST_FILES_PATTERN.search(text)
-        if list_files_match:
-            return "list_files", list_files_match.group(1), None
-        return None, None, None
-
-    def _send_email(self, to: str, subject: str, body: str) -> str:
-        try:
-            logger.info(f"Preparing to send email to {to}")
-            logger.info(f"Subject: {subject}")
-            logger.info(f"Body: {body}")
-            from app.services.gmail_service import send_email  # Import MCP tool
-            result = send_email(to=[to], subject=subject, body=body)
-            logger.info(f"Gmail MCP send_email result: {result}")
-            if isinstance(result, dict) and result.get("success"):
-                return "Email sent successfully! Please check your inbox."
-            elif isinstance(result, dict) and result.get("message"):
-                return f"Email sending failed: {result.get('message', 'Unknown error')}"
-            elif isinstance(result, str):
-                return result
-            else:
-                return "The email may have been sent successfully. Please check your inbox to confirm."
-        except Exception as e:
-            logger.error(f"Unexpected error while sending email: {str(e)}", exc_info=True)
-            return f"An unexpected error occurred while trying to send the email: {str(e)}"
-
-    def _search_drive(self, command: str, folder_name: str = None, search_query: str = None) -> str:
-        try:
-            from app.services.drive_service import list_root_folders, search_files
-            if command == "list_folders":
-                folders = list_root_folders()
-                if not folders:
-                    return "No folders found in your Drive."
-                return "Found folders in your Drive:\n" + "\n".join([f"- {folder['name']}" for folder in folders])
-            elif command == "list_files":
-                files = search_files(query="", folder_name=folder_name)
-                if not files:
-                    return f"No files found in folder '{folder_name}'."
-                return f"Files in folder '{folder_name}':\n" + "\n".join([f"- {file['name']}" for file in files])
-            elif command == "search":
-                files = search_files(query=search_query, folder_name=folder_name)
-                if not files:
-                    return f"No files found matching '{search_query}' in folder '{folder_name}'."
-                return f"Found files matching '{search_query}' in folder '{folder_name}':\n" + "\n".join([f"- {file['name']}" for file in files])
-            return "Invalid Drive command."
-        except Exception as e:
-            logger.error(f"Error in Drive search: {e}", exc_info=True)
-            return f"Error searching Drive: {str(e)}"
-
-    def _extract_weather_info(self, text: str) -> Optional[Any]:
-        match = self.WEATHER_COORD_PATTERN.search(text)
-        if match:
-            try:
-                lat = float(match.group(1))
-                lon = float(match.group(2))
-                return lat, lon
-            except Exception:
-                return None
-        match_city = self.WEATHER_CITY_PATTERN.search(text)
-        if match_city:
-            city = match_city.group(1).strip()
-            return city
-        return None
-
-    def _get_weather(self, location) -> str:
-        try:
-            from app.services.weather_service import get_weather_info
-            result = get_weather_info(location)
-            if not result.isError:
-                return result.content[0].text
-            else:
-                return result.content[0].text
-        except Exception as e:
-            logger.error(f"Error fetching weather: {str(e)}", exc_info=True)
-            return f"An error occurred while fetching weather: {str(e)}"
-
     def generate_response(self, prompt: str) -> str:
         try:
-            command, folder_name, search_query = self._extract_drive_info(prompt)
-            if command:
-                return self._search_drive(command, folder_name, search_query)
-            email_info = self._extract_email_info(prompt)
-            if email_info:
-                logger.info(f"Detected email command: {email_info}")
-                return self._send_email(
-                    email_info["to"],
-                    email_info["subject"],
-                    email_info["body"]
-                )
-            weather_info = self._extract_weather_info(prompt)
-            if weather_info:
-                return self._get_weather(weather_info)
+            # Use the prompt handler to process the prompt
+            result = self.prompt_handler.handle_prompt(prompt)
+            
+            # If the prompt handler returned a result, use it
+            if result is not None:
+                # Check if it's an error response
+                if hasattr(result, 'isError') and result.isError:
+                    return result.content[0].text
+                    
+                # Check if it's an image response
+                if result.content and len(result.content) > 0:
+                    content = result.content[0]
+                    if content.mimeType and content.mimeType.startswith('image/'):
+                        # For image responses, return the base64 data directly
+                        return content.text
+                    else:
+                        # For text responses
+                        return content.text
+                
+            # If no specific intent was matched or there was an error,
+            # fall back to the LLM for general conversation
             formatted_prompt = f"[INST] {self.system_prompt}\n\nUser: {prompt} [/INST]"
             logger.info("Generating natural language response...")
             output = self.model(

@@ -67,20 +67,20 @@ def read_resource(uri: str) -> List[TextContent]:
         }
         export_mime = export_types.get(mime_type, "text/plain")
         res = service.files().export(fileId=file_id, mimeType=export_mime).execute()
-        return [TextContent(uri=uri, mimeType=export_mime, text=res.decode("utf-8"))]
+        return [TextContent(type="text", uri=uri, mimeType=export_mime, text=res.decode("utf-8"))]
 
     res = service.files().get_media(fileId=file_id).execute()
 
     if mime_type.startswith("text/") or mime_type == "application/json":
-        return [TextContent(uri=uri, mimeType=mime_type, text=res.decode("utf-8"))]
+        return [TextContent(type="text", uri=uri, mimeType=mime_type, text=res.decode("utf-8"))]
     elif mime_type == "application/pdf":
         text = extract_text_from_pdf(res)
-        return [TextContent(uri=uri, mimeType="text/plain", text=text)]
+        return [TextContent(type="text", uri=uri, mimeType="text/plain", text=text)]
     elif mime_type.startswith("image/"):
         encoded = base64.b64encode(res).decode("utf-8")
-        return [TextContent(uri=uri, mimeType=mime_type, text=encoded)]
+        return [TextContent(type="text", uri=uri, mimeType=mime_type, text=encoded)]
     else:
-        return [TextContent(uri=uri, mimeType=mime_type, text="[Binary content not supported]")]
+        return [TextContent(type="text", uri=uri, mimeType=mime_type, text="[Binary content not supported]")]
 
 @mcp.tool()
 def list_tools() -> List[Tool]:

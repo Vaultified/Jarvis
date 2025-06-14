@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from ..services.llm_service import LLMService
+from ..services.prompt_handler import CallToolResult
 
 router = APIRouter()
 llm_service = LLMService()
@@ -15,12 +16,12 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     type: str = Field(
         default="chat",
-        description="The type of response",
+        description="The type of response (chat or image)",
         example="chat"
     )
     message: str = Field(
         ...,
-        description="The AI's response to the prompt",
+        description="The AI's response to the prompt or base64 image data",
         example="The capital of France is Paris."
     )
 
@@ -73,6 +74,16 @@ async def chat(request: ChatRequest):
     """
     try:
         response = llm_service.generate_response(request.prompt)
-        return ChatResponse(type="chat", message=response)
+        
+        # Check if the response is a base64 image
+        if isinstance(response, str) and (
+            response.startswith('iVBORw0KGgo') or  # PNG
+            response.startswith('/9j/') or          # JPEG
+            response.startswith('R0lGODlh')         # GIF
+        ):
+            return ChatResponse(type="image", message=response)
+            
+        # For all other responses
+        return ChatResponse(type="chat", message=str(response))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 

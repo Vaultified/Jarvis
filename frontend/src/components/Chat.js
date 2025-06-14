@@ -29,8 +29,18 @@ const Chat = () => {
 
     try {
       const response = await processMessage(userMessage);
+      console.log("Received response:", response);
 
-      if (response.type === "gmail") {
+      if (response.type === "image") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "assistant",
+            content: response.message,
+            isImage: true,
+          },
+        ]);
+      } else if (response.type === "gmail") {
         setMessages((prev) => [
           ...prev,
           {
@@ -51,6 +61,7 @@ const Chat = () => {
         ]);
       }
     } catch (error) {
+      console.error("Chat error:", error);
       setMessages((prev) => [
         ...prev,
         {
@@ -64,6 +75,37 @@ const Chat = () => {
     }
   };
 
+  const renderMessageContent = (message) => {
+    if (message.isImage) {
+      return (
+        <div className="image-container">
+          <img
+            src={message.content}
+            alt="Shared image"
+            className="shared-image"
+            onError={(e) => {
+              console.error("Error loading image:", e);
+              e.currentTarget.style.display = "none";
+              e.currentTarget.parentElement.innerHTML =
+                '<div class="error-message">Failed to load image</div>';
+            }}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="message-content">
+        {message.content}
+        {message.isGmail && (
+          <div className={`gmail-status ${message.success ? "success" : "error"}`}>
+            {message.success ? "✓" : "✗"}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="chat-container">
       <div className="messages-container">
@@ -72,16 +114,9 @@ const Chat = () => {
             key={index}
             className={`message ${message.type} ${message.isError ? "error" : ""} ${
               message.isGmail ? "gmail" : ""
-            }`}
+            } ${message.isImage ? "image-message" : ""}`}
           >
-            <div className="message-content">
-              {message.content}
-              {message.isGmail && (
-                <div className={`gmail-status ${message.success ? "success" : "error"}`}>
-                  {message.success ? "✓" : "✗"}
-                </div>
-              )}
-            </div>
+            {renderMessageContent(message)}
           </div>
         ))}
         {isLoading && (

@@ -5,7 +5,7 @@
   max-width: 800px;
   margin: 0 auto;
   padding: 20px;
-  background-color: #f5f5f5;
+  box-sizing: border-box;
 }
 
 .messages-container {
@@ -14,46 +14,191 @@
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
+  gap: 20px;
 }
 
 .message {
-  max-width: 70%;
-  padding: 10px 15px;
-  border-radius: 15px;
-  margin: 5px 0;
+  max-width: 80%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  word-wrap: break-word;
 }
 
-.message.user {
+.user-message {
   align-self: flex-end;
   background-color: #007bff;
   color: white;
 }
 
-.message.assistant {
+.assistant-message {
   align-self: flex-start;
   background-color: #f0f0f0;
   color: #333;
 }
 
-.message.error {
+.image-message {
+  max-width: 100%;
+  padding: 0;
+  background: none;
+}
+
+.image-container {
+  max-width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.shared-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
+.error {
   background-color: #ffebee;
   color: #c62828;
 }
 
-.message.gmail {
-  background-color: #e8f5e9;
-  border: 1px solid #81c784;
+.input-form {
+  display: flex;
+  gap: 10px;
+  padding: 20px;
+  background-color: white;
+  border-top: 1px solid #e0e0e0;
 }
 
-.message-content {
+input {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 16px;
+}
+
+button {
+  padding: 12px 24px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.typing-indicator {
   display: flex;
+  gap: 4px;
+  padding: 12px;
+}
+
+.typing-indicator span {
+  width: 8px;
+  height: 8px;
+  background-color: #666;
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out;
+}
+
+.typing-indicator span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes bounce {
+  0%,
+  80%,
+  100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+.error-message {
+  color: #c62828;
+  padding: 8px;
+  text-align: center;
+}
+
+/* Image message styles */
+.image-message {
+  background: none !important;
+  padding: 0 !important;
+  max-width: 90% !important;
+  margin: 10px 0 !important;
+}
+
+.image-container {
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8f9fa;
+  display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.shared-image {
+  max-width: 100%;
+  max-height: 400px;
+  height: auto;
+  display: block;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+/* Adjust message width for images */
+.message:has(.image-container) {
+  max-width: 90%;
+  padding: 0;
+  background: none;
+}
+
+.assistant-message:has(.image-container) {
+  background: none;
+}
+
+/* Loading state styles */
+.loading {
+  opacity: 0.7;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .message {
+    max-width: 90%;
+  }
+
+  .user-message {
+    margin-left: 10%;
+  }
+
+  .assistant-message {
+    margin-right: 10%;
+  }
+
+  .image-message {
+    max-width: 95% !important;
+  }
+
+  .shared-image {
+    max-height: 300px;
+  }
 }
 
 .gmail-status {
@@ -76,68 +221,10 @@
   color: white;
 }
 
-.input-form {
+.message-content {
   display: flex;
+  align-items: center;
   gap: 10px;
-  padding: 20px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-input {
-  flex: 1;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  font-size: 16px;
-}
-
-button {
-  padding: 10px 20px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 16px;
-}
-
-button:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
-
-.typing-indicator {
-  display: flex;
-  gap: 4px;
-  padding: 10px;
-}
-
-.typing-indicator span {
-  width: 8px;
-  height: 8px;
-  background-color: #666;
-  border-radius: 50%;
-  animation: typing 1s infinite ease-in-out;
-}
-
-.typing-indicator span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.typing-indicator span:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes typing {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-5px);
-  }
 }
 
 .drive-search-results {
