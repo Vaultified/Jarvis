@@ -61,8 +61,27 @@ class PromptHandler:
         prompt = prompt.lower()
         entities = {}
         
-        # File operations
-        if any(phrase in prompt for phrase in ["show me the image", "show me the picture", "display the image", "display the picture"]):
+        # Email operations
+        if any(phrase in prompt for phrase in [
+            "send an email", "send email", "email to", "send a message", "send message"
+        ]):
+            entities = self._extract_email_entities(prompt)
+            return IntentType.SEND_EMAIL, 0.9, entities
+        
+        # Weather operations
+        if any(phrase in prompt for phrase in [
+            "weather", "temperature", "forecast", "how's the weather", "what's the weather",
+            "weather in", "temperature in", "forecast for"
+        ]):
+            entities = self._extract_weather_entities(prompt)
+            return IntentType.GET_WEATHER, 0.9, entities
+        
+        # File operations - more flexible image patterns
+        if any(phrase in prompt for phrase in [
+            "show me the image", "show me the picture", "display the image", "display the picture",
+            "show the image", "show the picture", "display the photo", "show the photo",
+            "show me the photo", "display image", "show image", "display picture", "show picture"
+        ]):
             entities = self._extract_file_entities(prompt)
             return IntentType.SHOW_IMAGE, 0.9, entities
             
@@ -105,29 +124,21 @@ class PromptHandler:
         """Extract file-related entities from the prompt."""
         entities = {}
         
-        # Extract file name - more flexible pattern
-        file_pattern = r'(?:file|document|pdf|image|picture)\s+(?:named|called|titled)?\s*[\'"]([^\'"]+)[\'"]'
-        file_match = re.search(file_pattern, prompt, re.IGNORECASE)
-        if file_match:
-            entities["file_name"] = file_match.group(1)
-        else:
-            # Try to extract filename without quotes
-            alt_pattern = r'(?:file|document|pdf|image|picture)\s+(?:named|called|titled)?\s+(\S+)'
-            alt_match = re.search(alt_pattern, prompt, re.IGNORECASE)
-            if alt_match:
-                entities["file_name"] = alt_match.group(1)
-            else:
-                # Try to extract filename after "show me the image" or similar phrases
-                show_pattern = r'(?:show me the|display the)\s+(?:image|picture)\s+[\'"]([^\'"]+)[\'"]'
-                show_match = re.search(show_pattern, prompt, re.IGNORECASE)
-                if show_match:
-                    entities["file_name"] = show_match.group(1)
-                else:
-                    # Last attempt: try to extract filename after "show me the image" without quotes
-                    last_pattern = r'(?:show me the|display the)\s+(?:image|picture)\s+(\S+)'
-                    last_match = re.search(last_pattern, prompt, re.IGNORECASE)
-                    if last_match:
-                        entities["file_name"] = last_match.group(1)
+        # Extract file name - more flexible pattern for images
+        file_patterns = [
+            r'(?:file|document|pdf|image|picture|photo)\s+(?:named|called|titled)?\s*[\'"]([^\'"]+)[\'"]',
+            r'(?:file|document|pdf|image|picture|photo)\s+(?:named|called|titled)?\s+(\S+)',
+            r'(?:show me the|display the|show the)\s+(?:image|picture|photo)\s+[\'"]([^\'"]+)[\'"]',
+            r'(?:show me the|display the|show the)\s+(?:image|picture|photo)\s+(\S+)',
+            r'(?:display|show)\s+(?:image|picture|photo)\s+[\'"]([^\'"]+)[\'"]',
+            r'(?:display|show)\s+(?:image|picture|photo)\s+(\S+)'
+        ]
+        
+        for pattern in file_patterns:
+            file_match = re.search(pattern, prompt, re.IGNORECASE)
+            if file_match:
+                entities["file_name"] = file_match.group(1)
+                break
         
         # Extract query for PDF content
         query_pattern = r'(?:about|containing|with)\s+[\'"]([^\'"]+)[\'"]'
@@ -167,6 +178,84 @@ class PromptHandler:
         
         return entities
 
+    def _extract_weather_entities(self, prompt: str) -> Dict[str, Any]:
+        """Extract weather-related entities from the prompt."""
+        entities = {}
+        
+        # Extract location - multiple patterns for flexibility
+        location_patterns = [
+            r'(?:weather|temperature|forecast)\s+(?:in|at|for)\s+[\'"]([^\'"]+)[\'"]',
+            r'(?:weather|temperature|forecast)\s+(?:in|at|for)\s+(\S+)',
+            r'(?:in|at|for)\s+[\'"]([^\'"]+)[\'"]',
+            r'(?:in|at|for)\s+(\S+)'
+        ]
+        
+        for pattern in location_patterns:
+            location_match = re.search(pattern, prompt, re.IGNORECASE)
+            if location_match:
+                entities["location"] = location_match.group(1)
+                break
+        
+        return entities
+
+    def _extract_email_entities(self, prompt: str) -> Dict[str, Any]:
+        """Extract email-related entities from the prompt."""
+        entities = {}
+        
+        # More comprehensive pattern to match the full email format
+        # Matches: "send an email to [email] about [subject] saying [body]"
+        full_pattern = r'send\s+(?:an\s+)?email\s+to\s+([^\s]+@[^\s]+)\s+about\s+[\'"]([^\'"]+)[\'"]\s+saying\s+[\'"]([^\'"]+)[\'"]'
+        full_match = re.search(full_pattern, prompt, re.IGNORECASE)
+        
+        if full_match:
+            entities["to"] = full_match.group(1)
+            entities["subject"] = full_match.group(2)
+            entities["body"] = full_match.group(3)
+            return entities
+        
+        # Fallback patterns for individual components
+        # Extract recipient email
+        email_patterns = [
+            r'send\s+(?:an\s+)?email\s+to\s+([^\s]+@[^\s]+)',
+            r'email\s+to\s+([^\s]+@[^\s]+)',
+            r'to\s+([^\s]+@[^\s]+)'
+        ]
+        
+        for pattern in email_patterns:
+            email_match = re.search(pattern, prompt, re.IGNORECASE)
+            if email_match:
+                entities["to"] = email_match.group(1)
+                break
+        
+        # Extract subject
+        subject_patterns = [
+            r'about\s+[\'"]([^\'"]+)[\'"]',
+            r'subject\s+[\'"]([^\'"]+)[\'"]',
+            r'titled\s+[\'"]([^\'"]+)[\'"]'
+        ]
+        
+        for pattern in subject_patterns:
+            subject_match = re.search(pattern, prompt, re.IGNORECASE)
+            if subject_match:
+                entities["subject"] = subject_match.group(1)
+                break
+        
+        # Extract message body
+        body_patterns = [
+            r'saying\s+[\'"]([^\'"]+)[\'"]',
+            r'message\s+[\'"]([^\'"]+)[\'"]',
+            r'body\s+[\'"]([^\'"]+)[\'"]',
+            r'content\s+[\'"]([^\'"]+)[\'"]'
+        ]
+        
+        for pattern in body_patterns:
+            body_match = re.search(pattern, prompt, re.IGNORECASE)
+            if body_match:
+                entities["body"] = body_match.group(1)
+                break
+        
+        return entities
+
     def handle_prompt(self, prompt: str) -> CallToolResult:
         """
         Main method to handle user prompts.
@@ -188,7 +277,7 @@ class PromptHandler:
             elif intent.type == IntentType.SEARCH_FILES:
                 return self._handle_search_files(intent)
             elif intent.type == IntentType.SHOW_IMAGE:
-                return self._handle_show_image(prompt)
+                return self._handle_show_image(intent)
             elif intent.type == IntentType.READ_FILE:
                 return self._handle_read_file(intent)
             elif intent.type == IntentType.QUERY_PDF:
@@ -366,47 +455,82 @@ class PromptHandler:
                 isError=True
             )
 
-    def _handle_show_image(self, prompt: str) -> Optional[CallToolResult]:
+    def _handle_show_image(self, intent: Intent) -> Optional[CallToolResult]:
         """Handle show image command."""
-        # Extract filename from prompt
-        match = re.search(r"show\s+me\s+the\s+image\s+['\"]([^'\"]+)['\"]", prompt, re.IGNORECASE)
-        if not match:
+        # Get filename from extracted entities
+        filename = intent.entities.get("file_name")
+        if not filename:
             return CallToolResult(
                 content=[
                     TextContent(
                         type="text",
-                        text="Please specify an image filename in quotes, e.g., 'show me the image \"example.png\"'",
+                        text="Please specify an image filename, e.g., 'display the photo ai.jpeg'",
                         mimeType="text/plain",
                         uri=None
                     )
                 ]
             )
             
-        filename = match.group(1)
         logger.info(f"Looking for image: {filename}")
         
         try:
-            # List all resources in Drive to find the exact filename
-            resources = list_resources()
+            # Get all resources in Drive (multiple pages if needed)
+            all_resources = []
+            cursor = None
+            
+            # Get multiple pages of results
+            for _ in range(3):  # Get up to 3 pages (150 files total)
+                resources = list_resources(cursor)
+                if not resources:
+                    break
+                all_resources.extend(resources)
+                cursor = getattr(resources[-1], 'nextPageToken', None) if resources else None
+                if not cursor:
+                    break
+            
             target_file = None
             
-            # Search for the file case-insensitively
-            for resource in resources:
-                if resource.name.lower() == filename.lower():
+            # Search for the file case-insensitively with multiple strategies
+            filename_lower = filename.lower()
+            
+            # First try exact match
+            for resource in all_resources:
+                if resource.name.lower() == filename_lower:
                     target_file = resource
                     break
             
+            # If no exact match, try partial match
             if not target_file:
-                return CallToolResult(
-                    content=[
-                        TextContent(
-                            type="text",
-                            text=f"Could not find image '{filename}' in your Drive.",
-                            mimeType="text/plain",
-                            uri=None
-                        )
-                    ]
-                )
+                for resource in all_resources:
+                    if filename_lower in resource.name.lower() and resource.mimeType.startswith('image/'):
+                        target_file = resource
+                        break
+            
+            if not target_file:
+                # Return a helpful message with some available image files
+                image_files = [r.name for r in all_resources if r.mimeType.startswith('image/')]
+                if image_files:
+                    return CallToolResult(
+                        content=[
+                            TextContent(
+                                type="text",
+                                text=f"Could not find image '{filename}' in your Drive. Available images: {', '.join(image_files[:5])}",
+                                mimeType="text/plain",
+                                uri=None
+                            )
+                        ]
+                    )
+                else:
+                    return CallToolResult(
+                        content=[
+                            TextContent(
+                                type="text",
+                                text=f"Could not find image '{filename}' in your Drive. No image files found.",
+                                mimeType="text/plain",
+                                uri=None
+                            )
+                        ]
+                    )
             
             # Get the file ID from the URI
             file_id = str(target_file.uri).split("/")[-1]

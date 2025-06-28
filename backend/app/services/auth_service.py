@@ -154,21 +154,38 @@ class AuthService:
 
     def get_gmail_service(self):
         """Get an authenticated Gmail service."""
-        if not self.is_authenticated():
-            raise ValueError("Not authenticated")
-        return build('gmail', 'v1', credentials=self.credentials)
+        try:
+            credentials = self.get_credentials()
+            if not credentials:
+                raise ValueError("Not authenticated")
+            
+            # Try to refresh credentials if they're expired
+            if credentials.expired and credentials.refresh_token:
+                try:
+                    credentials.refresh(GoogleRequest())
+                    self._save_credentials(credentials)
+                    logger.info("Credentials refreshed successfully")
+                except Exception as e:
+                    logger.error(f"Failed to refresh credentials: {str(e)}")
+                    raise ValueError("Authentication expired. Please re-authenticate.")
+            
+            return build('gmail', 'v1', credentials=credentials)
+        except Exception as e:
+            logger.error(f"Error getting Gmail service: {str(e)}")
+            raise
 
     def get_drive_service(self):
         """Get a Google Drive service instance."""
         try:
-            if not self.credentials:
+            credentials = self.get_credentials()
+            if not credentials:
                 raise ValueError("Not authenticated")
             
             # Try to refresh credentials if they're expired
-            if self.credentials.expired and self.credentials.refresh_token:
+            if credentials.expired and credentials.refresh_token:
                 try:
-                    self.credentials.refresh(GoogleRequest())
-                    self._save_credentials()
+                    credentials.refresh(GoogleRequest())
+                    self._save_credentials(credentials)
                     logger.info("Credentials refreshed successfully")
                 except Exception as e:
                     logger.error(f"Failed to refresh credentials: {str(e)}")
@@ -178,7 +195,7 @@ class AuthService:
             import googleapiclient.discovery_cache
             googleapiclient.discovery_cache.DISCOVERY_CACHE = {}
             
-            return build('drive', 'v3', credentials=self.credentials)
+            return build('drive', 'v3', credentials=credentials)
         except Exception as e:
             logger.error(f"Error getting Drive service: {str(e)}")
             raise

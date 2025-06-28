@@ -116,10 +116,17 @@ const Chat: React.FC = () => {
     console.log("Message content length:", message.content.length);
 
     if (message.isImage) {
+      // Check if the content is base64 data
+      const isBase64 =
+        message.content.startsWith("data:image") ||
+        (message.content.length > 100 && !message.content.includes("http"));
+
+      const imageSrc = isBase64 ? message.content : `data:image/jpeg;base64,${message.content}`;
+
       return (
         <div className="image-container">
           <img
-            src={message.content}
+            src={imageSrc}
             alt="Shared image"
             className="shared-image"
             onError={(e) => {
@@ -127,6 +134,9 @@ const Chat: React.FC = () => {
               e.currentTarget.style.display = "none";
               e.currentTarget.parentElement!.innerHTML =
                 '<div class="error-message">Failed to load image</div>';
+            }}
+            onLoad={(e) => {
+              console.log("Image loaded successfully");
             }}
           />
         </div>

@@ -6,11 +6,13 @@
   margin: 0 auto;
   padding: 20px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .messages-container {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -38,22 +40,34 @@
 }
 
 .image-message {
-  max-width: 100%;
-  padding: 0;
-  background: none;
+  background: none !important;
+  padding: 0 !important;
+  max-width: 100% !important;
+  margin: 10px 0 !important;
+  width: 100% !important;
 }
 
 .image-container {
   max-width: 100%;
-  border-radius: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border-radius: 8px;
   overflow: hidden;
+  background: #f8f9fa;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .shared-image {
-  width: 100%;
+  max-width: 100%;
+  max-height: 400px;
+  width: auto;
   height: auto;
   display: block;
+  border-radius: 8px;
   object-fit: contain;
 }
 
@@ -132,45 +146,18 @@ button:disabled {
   text-align: center;
 }
 
-/* Image message styles */
-.image-message {
-  background: none !important;
-  padding: 0 !important;
-  max-width: 90% !important;
-  margin: 10px 0 !important;
-}
-
-.image-container {
-  max-width: 100%;
-  margin: 0;
-  padding: 0;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #f8f9fa;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.shared-image {
-  max-width: 100%;
-  max-height: 400px;
-  height: auto;
-  display: block;
-  border-radius: 8px;
-  object-fit: contain;
-}
-
 /* Adjust message width for images */
 .message:has(.image-container) {
-  max-width: 90%;
+  max-width: 100%;
+  width: 100%;
   padding: 0;
   background: none;
 }
 
 .assistant-message:has(.image-container) {
   background: none;
+  max-width: 100%;
+  width: 100%;
 }
 
 /* Loading state styles */
@@ -193,11 +180,18 @@ button:disabled {
   }
 
   .image-message {
-    max-width: 95% !important;
+    max-width: 100% !important;
+    width: 100% !important;
   }
 
   .shared-image {
     max-height: 300px;
+    max-width: 100%;
+  }
+
+  .image-container {
+    max-width: 100%;
+    width: 100%;
   }
 }
 

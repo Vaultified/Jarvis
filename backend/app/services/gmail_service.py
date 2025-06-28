@@ -5,18 +5,24 @@ import base64
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import List
-from .auth_service import get_google_credentials
+from .auth_service import AuthService
 import time
+import os
 
 # Create an MCP server
 mcp = FastMCP("Gmail Service")
 
 def get_gmail_service():
     """Initialize and return Gmail service with OAuth2 credentials."""
-    creds = get_google_credentials()
-    if not creds:
-        raise ValueError("Failed to get valid credentials")
-    return build('gmail', 'v1', credentials=creds)
+    # Get the path to the credentials file
+    credentials_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "credentials.json")
+    token_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "token.json")
+    
+    # Initialize auth service
+    auth_service = AuthService(credentials_path=credentials_path, token_path=token_path)
+    
+    # Get Gmail service
+    return auth_service.get_gmail_service()
 
 @mcp.tool()
 def send_email(to: List[str], subject: str, body: str, mime_type: str = "text/plain") -> dict:

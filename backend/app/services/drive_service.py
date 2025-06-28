@@ -8,19 +8,25 @@ from mcp.types import (
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from PyPDF2 import PdfReader
-from .auth_service import get_google_credentials
+from .auth_service import AuthService
 import base64
 import io
 import re
+import os
 from typing import List
 
 mcp = FastMCP("gdrive-mcp-server", version="0.1.0")
 
 def get_drive_service():
-    creds = get_google_credentials()
-    if not creds:
-        raise ValueError("Authentication required for Google Drive.")
-    return build("drive", "v3", credentials=creds)
+    # Get the path to the credentials file
+    credentials_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "credentials.json")
+    token_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "token.json")
+    
+    # Initialize auth service
+    auth_service = AuthService(credentials_path=credentials_path, token_path=token_path)
+    
+    # Get drive service
+    return auth_service.get_drive_service()
 
 def extract_text_from_pdf(binary_data: bytes) -> str:
     pdf_reader = PdfReader(io.BytesIO(binary_data))
@@ -32,9 +38,10 @@ def list_resources(cursor: str = None) -> List[Resource]:
     service = get_drive_service()
     try:
         results = service.files().list(
-            pageSize=10,
+            pageSize=50,
             fields="nextPageToken, files(id, name, mimeType)",
-            pageToken=cursor
+            pageToken=cursor,
+            q="trashed=false"
         ).execute()
 
         files = results.get("files", [])
